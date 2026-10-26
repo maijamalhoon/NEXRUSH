@@ -1,14 +1,13 @@
-import {
-  ArcRotateCamera, Color3, Color4, Engine, HemisphericLight, Mesh,
-  MeshBuilder, RegisterStandardEngineExtensions, RegisterStandardMaterial,
-  Scene, StandardMaterial, Vector3
-} from "@babylonjs/core/pure";
+import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { Scene } from "@babylonjs/core/scene";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { applyGrassDrag, crossedStartFinish, driftAngleDegrees, positiveAngle, TAU } from "./raceMath";
-
-// Pure imports keep unused Babylon.js systems out of the production bundle.
-// Register only the material and WebGL engine capabilities used by this scene.
-RegisterStandardEngineExtensions();
-RegisterStandardMaterial();
 
 export type QualityMode = "auto" | "low" | "medium" | "high";
 export interface Telemetry {
