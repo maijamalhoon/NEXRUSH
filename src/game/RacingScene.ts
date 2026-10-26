@@ -7,7 +7,8 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { applyGrassDrag, countdownNumber, crossedStartFinish, driftAngleDegrees, getRacePhase, positiveAngle, TAU, updateBestLap, type RacePhase } from "./raceMath";
+import { applyGrassDrag, countdownNumber, crossedStartFinish, driftAngleDegrees, getRacePhase, isFinalLap, positiveAngle, TAU, TOTAL_LAPS, updateBestLap, type RacePhase } from "./raceMath";
+import type { RaceSetup } from "./catalog";
 
 export type QualityMode = "auto" | "low" | "medium" | "high";
 export interface Telemetry {
@@ -19,27 +20,34 @@ export interface Telemetry {
   position: number;
   offTrack: boolean;
   driftAngle: number;
+  drifting: boolean;
+  driftScore: number;
+  boosting: boolean;
   lapTime: number;
   lastLapTime: number;
   bestLapTime: number;
   countdown: number;
   racePhase: RacePhase;
+  nitro: number;
+  takedowns: number;
 }
-type Control = "left" | "right" | "accelerate" | "brake" | "handbrake";
-type Opponent = { mesh: Mesh; progress: number; startProgress: number; speed: number; lane: number; wheels: Mesh[] };
+type Control = "left" | "right" | "accelerate" | "brake" | "handbrake" | "nitro";
+type Opponent = { mesh: Mesh; progress: number; startProgress: number; speed: number; lane: number; wheels: Mesh[]; destroyed: boolean };
+export type RaceEvent = { type: "TAKEDOWN"; reward: number; opponent: string } | { type: "FINISH"; reward: number; position: number; elapsed: number };
 
 const scales = { low: 0.62, medium: 0.8, high: 1 };
-const RX = 34;
-const RZ = 22;
-const ROAD_HALF_WIDTH = 7.5;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 export class RacingScene {
   private engine: Engine;
   private scene: Scene;
   private camera: ArcRotateCamera;
+  private rx = 34;
+  private rz = 22;
+  private roadHalfWidth = 7.5;
   private car: Mesh;
   private wheels: Mesh[] = [];
+  private boostFlames: Mesh[] = [];
   private opponents: Opponent[] = [];
   private optionalScenery: Array<{ isVisible: boolean }> = [];
   private autoSceneryVisible = true;
@@ -56,6 +64,12 @@ export class RacingScene {
   private countdownRemaining = 3.0;
   private raceStarted = false;
   private goFlashRemaining = 0;
+  private raceFinished = false;
+  private nitro = 100;
+  private takedowns = 0;
+  private driftScore = 0;
+  private drifting = false;
+  private impactShake = 0;
   private hudAccumulator = 0;
   private lap = 1;
   private lapProgress = 0;
@@ -79,7 +93,10 @@ export class RacingScene {
   private up = (e: KeyboardEvent) => this.keys.delete(e.key.toLowerCase());
   private clear = () => { this.keys.clear(); this.controls.clear(); };
 
-  constructor(canvas: HTMLCanvasElement, private onTelemetry: (t: Telemetry) => void) {
+  constructor(canvas: HTMLCanvasElement, private onTelemetry: (t: Telemetry) => void, private setup: RaceSetup, private onRaceEvent: (event: RaceEvent) => void) {
+    this.rx = setup.track.rx;
+    this.rz = setup.track.rz;
+    this.roadHalfWidth = setup.track.roadHalfWidth;
     this.engine = new Engine(canvas, false, {
       preserveDrawingBuffer: false,
       stencil: false,
@@ -87,14 +104,17 @@ export class RacingScene {
     }, false);
     this.engine.setHardwareScalingLevel(1 / this.autoScale);
     this.scene = new Scene(this.engine);
-    this.scene.clearColor = new Color4(0.025, 0.035, 0.065, 1);
+    this.scene.clearColor = Color4.FromHexString(setup.track.sky + "ff");
+    this.scene.fogMode = Scene.FOGMODE_EXP2;
+    this.scene.fogDensity = setup.track.id === "dune-canyon" ? 0.0017 : 0.00125;
+    this.scene.fogColor = Color3.FromHexString(setup.track.sky);
     this.scene.skipPointerMovePicking = true;
-    this.camera = new ArcRotateCamera("chase", 0, 1.08, 13, new Vector3(0, 0.7, RZ), this.scene);
+    this.camera = new ArcRotateCamera("chase", 0, 1.08, 13, new Vector3(0, 0.7, this.rz), this.scene);
     this.camera.lowerRadiusLimit = 9;
     this.camera.upperRadiusLimit = 17;
     this.camera.inputs.clear();
-    this.car = this.makeCar("player-car", new Color3(0.76, 0.035, 0.12), true);
-    this.car.position.set(0, 0.65, RZ);
+    this.car = this.makeCar("player-car", Color3.FromHexString(setup.paint), true);
+    this.car.position.set(0, 0.65, this.rz);
     this.makeTrack();
     this.makeWorld();
     this.makeCity();
@@ -130,7 +150,7 @@ export class RacingScene {
   };
 
   setControl(key: string, pressed: boolean) {
-    if (!(["left", "right", "accelerate", "brake", "handbrake"] as string[]).includes(key)) return;
+    if (!(["left", "right", "accelerate", "brake", "handbrake", "nitro"] as string[]).includes(key)) return;
     if (pressed) this.controls.add(key as Control);
     else this.controls.delete(key as Control);
   }
@@ -148,6 +168,13 @@ export class RacingScene {
     this.lapTime = 0;
     this.lastLapTime = 0;
     this.bestLapTime = 0;
+    this.raceFinished = false;
+    this.nitro = 100;
+    this.takedowns = 0;
+    this.driftScore = 0;
+    this.drifting = false;
+    this.impactShake = 0;
+    this.boostFlames.forEach(flame => { flame.isVisible = false; });
     this.countdownRemaining = 3.0;
     this.raceStarted = false;
     this.goFlashRemaining = 0;
@@ -159,23 +186,19 @@ export class RacingScene {
     this.lastProgress = 0;
     this.offTrack = false;
     this.collisionCooldown = 0;
-    this.car.position.set(0, 0.65, RZ);
+    this.car.position.set(0, 0.65, this.rz);
     this.car.rotation.y = this.heading;
     this.camera.alpha = 0;
     this.camera.radius = 12;
-    this.camera.target.set(0, 1.3, RZ);
+    this.camera.target.set(0, 1.3, this.rz);
     for (const opponent of this.opponents) {
+      opponent.destroyed = false;
+      opponent.mesh.setEnabled(true);
       opponent.progress = opponent.startProgress;
       const t = Math.PI / 2 + opponent.progress;
-      const nxRaw = Math.cos(t) / RX;
-      const nzRaw = Math.sin(t) / RZ;
-      const nLength = Math.hypot(nxRaw, nzRaw);
-      opponent.mesh.position.set(
-        RX * Math.cos(t) + nxRaw / nLength * opponent.lane,
-        0.65,
-        RZ * Math.sin(t) + nzRaw / nLength * opponent.lane
-      );
-      opponent.mesh.rotation.y = Math.atan2(-RX * Math.sin(t), RZ * Math.cos(t));
+      const point = this.trackPosition(t, opponent.lane);
+      opponent.mesh.position.set(point.x, 0.65, point.z);
+      opponent.mesh.rotation.y = this.trackHeading(t);
     }
     this.publishTelemetry(false);
   }
@@ -218,6 +241,10 @@ export class RacingScene {
 
   private update(dt: number) {
     this.hudAccumulator += dt;
+    if (this.raceFinished) {
+      if (this.hudAccumulator >= 0.08) { this.hudAccumulator = 0; this.publishTelemetry(false); }
+      return;
+    }
     if (!this.raceStarted) {
       this.countdownRemaining = Math.max(0, this.countdownRemaining - dt);
       if (this.countdownRemaining <= 0) {
@@ -241,29 +268,47 @@ export class RacingScene {
     const brake = this.keys.has("s") || this.keys.has("arrowdown") || this.controls.has("brake");
     const left = this.keys.has("a") || this.keys.has("arrowleft") || this.controls.has("left");
     const right = this.keys.has("d") || this.keys.has("arrowright") || this.controls.has("right");
-    const hand = this.keys.has(" ") || this.controls.has("handbrake");
+    const hand = this.keys.has("shift") || this.controls.has("handbrake");
+    const boost = this.keys.has(" ") || this.controls.has("nitro");
 
-    if (accel) this.speed += (this.speed < 0 ? 48 : 30) * dt;
+    const engineLevel = this.setup.upgrades.engine || 0;
+    const handlingLevel = this.setup.upgrades.handling || 0;
+    const nitroLevel = this.setup.upgrades.nitro || 0;
+    if (accel) this.speed += (this.speed < 0 ? 48 : this.setup.car.acceleration + engineLevel * 2) * dt;
     else if (this.speed > 0) this.speed = Math.max(0, this.speed - 5.5 * dt);
     else if (this.speed < 0) this.speed = Math.min(0, this.speed + 5.5 * dt);
     if (brake) {
       if (this.speed > 5) this.speed -= 52 * dt;
       else this.speed -= 20 * dt;
     }
-    if (hand) this.speed *= Math.exp(-2.4 * dt);
-    this.speed = clamp(this.speed, -28, 220);
+    if (hand) this.speed *= Math.exp(-0.55 * dt);
+    const boostActive = boost && this.nitro > 0;
+    this.boostFlames.forEach((flame, index) => {
+      flame.isVisible = boostActive && Math.abs(this.speed) > 12;
+      flame.scaling.y = 0.72 + Math.sin(this.elapsed * 42 + index * 1.7) * 0.16 + Math.min(0.45, Math.abs(this.speed) / 240);
+    });
+    if (boostActive) {
+      this.speed += 62 * dt;
+      this.nitro = Math.max(0, this.nitro - Math.max(18, 34 - nitroLevel * 3) * dt);
+    } else {
+      this.nitro = Math.min(100, this.nitro + (10 + nitroLevel * 2.5) * dt);
+    }
+    this.speed = clamp(this.speed, -28, this.setup.car.topSpeed + engineLevel * 6);
 
     const steering = Number(right) - Number(left);
     const speedFactor = Math.min(1, Math.abs(this.speed) / 24);
-    this.heading += steering * speedFactor * dt * (hand ? 1.85 : 1.22) * Math.sign(this.speed || 1);
+    this.heading += steering * speedFactor * dt * (hand ? 1.85 : 1.22) * (this.setup.car.handling + handlingLevel * 0.06) * Math.sign(this.speed || 1);
     if (steering !== 0 && speedFactor > 0.1) {
-      this.lateralVelocity += steering * speedFactor * (hand ? 15 : 4.2) * dt * Math.sign(this.speed || 1);
+      this.lateralVelocity += steering * speedFactor * (hand ? 15 : 4.2) * (this.setup.car.handling + handlingLevel * 0.06) * dt * Math.sign(this.speed || 1);
     }
     this.lateralVelocity = clamp(
       this.lateralVelocity * Math.exp(-dt * (hand ? 0.62 : 1.65)),
       -18,
       18
     );
+    const driftAngle = driftAngleDegrees(this.lateralVelocity, this.speed);
+    this.drifting = hand && Math.abs(this.speed) > 30 && driftAngle > 7;
+    if (this.drifting) this.driftScore += Math.round(Math.abs(this.speed) * dt * Math.min(2.2, driftAngle / 18));
     const sinHeading = Math.sin(this.heading);
     const cosHeading = Math.cos(this.heading);
     const forwardStep = this.speed * dt / 3.6;
@@ -271,12 +316,13 @@ export class RacingScene {
     this.car.position.x += sinHeading * forwardStep + cosHeading * lateralStep;
     this.car.position.z += cosHeading * forwardStep - sinHeading * lateralStep;
     this.car.rotation.y = this.heading;
+    this.car.rotation.z = clamp(-steering * speedFactor * (hand ? 0.12 : 0.045), -0.14, 0.14);
+    this.wheels.forEach((wheel, index) => { wheel.rotation.y = index % 2 === 1 ? steering * 0.22 : 0; });
 
-    const trackAngle = Math.atan2(this.car.position.z / RZ, this.car.position.x / RX);
-    const nearestX = RX * Math.cos(trackAngle);
-    const nearestZ = RZ * Math.sin(trackAngle);
-    const distanceFromCentre = Math.hypot(this.car.position.x - nearestX, this.car.position.z - nearestZ);
-    this.offTrack = distanceFromCentre > ROAD_HALF_WIDTH - 1.0;
+    const trackAngle = Math.atan2(this.car.position.z / this.rz, this.car.position.x / this.rx);
+    const nearest = this.trackPoint(trackAngle);
+    const distanceFromCentre = Math.hypot(this.car.position.x - nearest.x, this.car.position.z - nearest.z);
+    this.offTrack = distanceFromCentre > this.roadHalfWidth - 1.0;
     if (this.offTrack) {
       // Grass should slow the car down, never accelerate a stopped car backwards.
       this.speed = applyGrassDrag(this.speed, dt);
@@ -289,44 +335,63 @@ export class RacingScene {
     if (crossedStartFinish(previousProgress, this.lapProgress, this.speed)) {
       this.lastLapTime = this.lapTime;
       this.bestLapTime = updateBestLap(this.lastLapTime, this.bestLapTime);
-      this.lap++;
-      this.lapTime = 0;
+      if (isFinalLap(this.lap, TOTAL_LAPS)) {
+        this.raceFinished = true;
+        this.lap = TOTAL_LAPS;
+        this.lapTime = 0;
+        const finishedProgress = TOTAL_LAPS * TAU;
+        const finalPosition = 1 + this.opponents.filter(o => !o.destroyed && o.progress > finishedProgress).length;
+        const difficultyBonus = this.setup.difficulty === "hard" ? 80 : this.setup.difficulty === "medium" ? 45 : 20;
+        this.onRaceEvent({ type: "FINISH", reward: Math.max(20, (4 - finalPosition) * 55 + difficultyBonus), position: finalPosition, elapsed: this.elapsed });
+      } else {
+        this.lap++;
+        this.lapTime = 0;
+      }
     }
     this.lastProgress = this.lapProgress;
 
     for (const opponent of this.opponents) {
-      opponent.progress += (opponent.speed / 3.6 / 29) * dt;
+      if (opponent.destroyed) continue;
+      const paceVariation = Math.sin(opponent.progress * 1.6 + opponent.startProgress * 5) * 4.5;
+      opponent.progress += ((opponent.speed + paceVariation) / 3.6 / 29) * dt;
       const t = Math.PI / 2 + opponent.progress;
-      const nxRaw = Math.cos(t) / RX;
-      const nzRaw = Math.sin(t) / RZ;
-      const nLength = Math.hypot(nxRaw, nzRaw);
-      const nx = nxRaw / nLength;
-      const nz = nzRaw / nLength;
-      opponent.mesh.position.set(
-        RX * Math.cos(t) + nx * opponent.lane,
-        0.65,
-        RZ * Math.sin(t) + nz * opponent.lane
-      );
-      const dx = -RX * Math.sin(t);
-      const dz = RZ * Math.cos(t);
-      opponent.mesh.rotation.y = Math.atan2(dx, dz);
+      const laneChange = Math.sin(opponent.progress * 0.72 + opponent.startProgress * 7) * 0.72;
+      const point = this.trackPosition(t, opponent.lane + laneChange);
+      opponent.mesh.position.set(point.x, 0.65, point.z);
+      opponent.mesh.rotation.y = this.trackHeading(t);
       for (const wheel of opponent.wheels) wheel.rotation.x += opponent.speed * dt / 3.6;
       const dist = Math.hypot(this.car.position.x - opponent.mesh.position.x, this.car.position.z - opponent.mesh.position.z);
       if (dist < 2.7 && this.collisionCooldown === 0) {
-        this.speed *= 0.68;
-        this.heading += (this.car.position.x - opponent.mesh.position.x >= 0 ? 1 : -1) * 0.2;
-        this.collisionCooldown = 0.65;
+        if (Math.abs(this.speed) >= 108 && this.speed > 0) {
+          opponent.destroyed = true;
+          opponent.mesh.setEnabled(false);
+          this.impactShake = Math.max(this.impactShake, 0.8);
+          this.takedowns++;
+          this.nitro = Math.min(100, this.nitro + 18);
+          this.onRaceEvent({ type: "TAKEDOWN", reward: 35, opponent: opponent.mesh.name });
+        } else {
+          const armorLevel = this.setup.upgrades.armor || 0;
+          const impactResistance = clamp(this.setup.car.durability / 1000 + armorLevel * 0.025, 0, 0.22);
+          this.speed *= 0.68 + impactResistance;
+          this.impactShake = Math.max(this.impactShake, 0.45);
+          this.heading += (this.car.position.x - opponent.mesh.position.x >= 0 ? 1 : -1) * 0.2;
+        }
+        this.collisionCooldown = Math.max(0.35, 0.65 - (this.setup.upgrades.armor || 0) * 0.05);
       }
     }
 
     for (const wheel of this.wheels) wheel.rotation.x += this.speed * dt / 1.2;
     const cameraFollow = Math.min(1, dt * 5);
-    this.camera.target.x += (this.car.position.x - this.camera.target.x) * cameraFollow;
-    this.camera.target.y += (this.car.position.y + 0.65 - this.camera.target.y) * cameraFollow;
+    this.impactShake = Math.max(0, this.impactShake - dt * 2.6);
+    const shakeX = Math.sin(this.elapsed * 70) * this.impactShake * 0.22;
+    const shakeY = Math.cos(this.elapsed * 83) * this.impactShake * 0.1;
+    this.camera.target.x += (this.car.position.x + shakeX - this.camera.target.x) * cameraFollow;
+    this.camera.target.y += (this.car.position.y + 0.65 + shakeY - this.camera.target.y) * cameraFollow;
     this.camera.target.z += (this.car.position.z - this.camera.target.z) * cameraFollow;
     this.camera.alpha = -Math.PI / 2 - this.heading;
     this.camera.beta = 1.08 + Math.min(0.12, Math.abs(this.speed) / 1200);
-    this.camera.radius = 12 + Math.min(3, Math.abs(this.speed) / 70);
+    this.camera.radius = 12 + Math.min(3, Math.abs(this.speed) / 70) - (boostActive ? 0.8 : 0);
+    this.camera.fov = 0.8 + Math.min(0.13, Math.abs(this.speed) / 2100) + (boostActive ? 0.045 : 0);
 
     if (this.hudAccumulator >= 0.08) {
       this.hudAccumulator = 0;
@@ -335,9 +400,9 @@ export class RacingScene {
   }
 
   private publishTelemetry(accelerating: boolean) {
-    const playerProgress = (this.lap - 1) * TAU + this.lapProgress;
-    const position = 1 + this.opponents.filter(o => o.progress > playerProgress).length;
-    const racePhase = getRacePhase(this.raceStarted, this.goFlashRemaining);
+    const playerProgress = this.raceFinished ? TOTAL_LAPS * TAU : (this.lap - 1) * TAU + this.lapProgress;
+    const position = 1 + this.opponents.filter(o => !o.destroyed && o.progress > playerProgress).length;
+    const racePhase = getRacePhase(this.raceStarted, this.goFlashRemaining, this.raceFinished);
     this.onTelemetry({
       speed: Math.abs(this.speed),
       gear: Math.max(1, Math.min(6, Math.floor(Math.max(0, this.speed) / 38) + 1)),
@@ -347,68 +412,200 @@ export class RacingScene {
       position,
       offTrack: this.offTrack,
       driftAngle: driftAngleDegrees(this.lateralVelocity, this.speed),
+      drifting: this.drifting,
+      driftScore: this.driftScore,
+      boosting: this.raceStarted && !this.raceFinished && (this.keys.has(" ") || this.controls.has("nitro")) && this.nitro > 0,
       lapTime: this.lapTime,
       lastLapTime: this.lastLapTime,
       bestLapTime: this.bestLapTime,
       countdown: countdownNumber(this.countdownRemaining),
-      racePhase
+      racePhase,
+      nitro: this.nitro,
+      takedowns: this.takedowns
     });
   }
 
   private lastProgress = 0;
 
   private makeCar(name: string, color: Color3, player: boolean): Mesh {
-    const body = MeshBuilder.CreateBox(name, { width: 1.9, height: 0.52, depth: 3.8 }, this.scene);
+    const carShape = player ? this.setup.car.shape : "gt";
+    const dimensions = carShape === "hyper" ? { width: 1.88, height: 0.42, depth: 4.05 } : carShape === "muscle" ? { width: 2.05, height: 0.56, depth: 3.7 } : carShape === "rally" ? { width: 1.95, height: 0.55, depth: 3.55 } : carShape === "sport" ? { width: 1.82, height: 0.42, depth: 3.65 } : { width: 1.9, height: 0.46, depth: 3.8 };
+    const body = MeshBuilder.CreateBox(name, dimensions, this.scene);
     body.position.y = 0.65;
+    body.isPickable = false;
+
     const paint = new StandardMaterial(name + "-paint", this.scene);
     paint.diffuseColor = color;
-    paint.specularColor = new Color3(0.72, 0.78, 0.86);
-    paint.specularPower = 64;
-    body.material = paint;
-    const cabin = MeshBuilder.CreateBox(name + "-canopy", { width: 1.32, height: 0.46, depth: 1.55 }, this.scene);
-    cabin.position.set(0, 0.45, -0.15);
-    cabin.parent = body;
+    paint.specularColor = new Color3(0.9, 0.92, 1);
+    paint.specularPower = 96;
+    const carbon = new StandardMaterial(name + "-carbon", this.scene);
+    carbon.diffuseColor = new Color3(0.025, 0.035, 0.05);
+    carbon.specularColor = new Color3(0.25, 0.3, 0.36);
     const glass = new StandardMaterial(name + "-glass", this.scene);
-    glass.diffuseColor = new Color3(0.035, 0.12, 0.18);
-    glass.emissiveColor = new Color3(0.01, 0.07, 0.09);
+    glass.diffuseColor = new Color3(0.025, 0.09, 0.13);
+    glass.emissiveColor = new Color3(0.008, 0.025, 0.035);
+    glass.specularColor = new Color3(0.65, 0.78, 0.86);
+    glass.specularPower = 120;
+    const chrome = new StandardMaterial(name + "-alloy", this.scene);
+    chrome.diffuseColor = new Color3(0.32, 0.42, 0.52);
+    chrome.specularColor = new Color3(0.95, 0.98, 1);
+    chrome.specularPower = 128;
+    const tire = new StandardMaterial(name + "-rubber", this.scene);
+    tire.diffuseColor = new Color3(0.018, 0.022, 0.03);
+    tire.specularColor = new Color3(0.07, 0.08, 0.1);
+    const lamp = new StandardMaterial(name + "-headlamp-material", this.scene);
+    lamp.emissiveColor = new Color3(0.45, 0.85, 1);
+    lamp.disableLighting = true;
+    const tail = new StandardMaterial(name + "-taillamp-material", this.scene);
+    tail.emissiveColor = new Color3(1, 0.015, 0.035);
+    tail.disableLighting = true;
+    const accent = new StandardMaterial(name + "-accent", this.scene);
+    accent.diffuseColor = Color3.FromHexString(player ? this.setup.track.primary : "#a7c8ff");
+    accent.emissiveColor = Color3.FromHexString(player ? this.setup.track.primary : "#18334d");
+    const addBox = (label: string, size: { width: number; height: number; depth: number }, x: number, y: number, z: number, material: StandardMaterial, rotationY = 0) => {
+      const mesh = MeshBuilder.CreateBox(name + "-" + label, size, this.scene);
+      mesh.position.set(x, y, z);
+      mesh.rotation.y = rotationY;
+      mesh.material = material;
+      mesh.parent = body;
+      mesh.isPickable = false;
+      return mesh;
+    };
+
+    // Layered body panels give each car a readable hood, shoulder line and rear deck.
+    addBox("lower-chassis", { width: dimensions.width * 0.94, height: 0.18, depth: dimensions.depth * 0.92 }, 0, -0.2, 0, carbon);
+    addBox("front-hood", { width: dimensions.width * 0.84, height: 0.12, depth: dimensions.depth * 0.38 }, 0, 0.19, dimensions.depth * 0.27, paint);
+    addBox("rear-deck", { width: dimensions.width * 0.86, height: 0.14, depth: dimensions.depth * 0.22 }, 0, 0.17, -dimensions.depth * 0.32, paint);
+    addBox("front-splitter", { width: dimensions.width * 1.02, height: 0.07, depth: 0.36 }, 0, -0.19, dimensions.depth * 0.49, carbon);
+    addBox("rear-diffuser", { width: dimensions.width * 0.86, height: 0.11, depth: 0.3 }, 0, -0.18, -dimensions.depth * 0.48, carbon);
+    addBox("side-skirt-left", { width: 0.1, height: 0.13, depth: dimensions.depth * 0.58 }, -dimensions.width * 0.49, -0.16, 0, accent);
+    addBox("side-skirt-right", { width: 0.1, height: 0.13, depth: dimensions.depth * 0.58 }, dimensions.width * 0.49, -0.16, 0, accent);
+
+    const cabin = MeshBuilder.CreateBox(name + "-canopy", {
+      width: dimensions.width * 0.68, height: dimensions.height * 0.86, depth: dimensions.depth * 0.38
+    }, this.scene);
+    cabin.position.set(0, dimensions.height * 0.78, -0.08);
+    cabin.scaling.z = 1;
+    cabin.parent = body;
     cabin.material = glass;
-    const rubber = new StandardMaterial(name + "-rubber", this.scene);
-    rubber.diffuseColor = new Color3(0.035, 0.04, 0.055);
-    const targetWheels = player ? this.wheels : [];
-    for (const x of [-0.98, 0.98]) for (const z of [-1.2, 1.2]) {
-      const w = MeshBuilder.CreateCylinder(name + "-wheel", { diameter: 0.78, height: 0.32, tessellation: 10 }, this.scene);
-      w.rotation.z = Math.PI / 2;
-      w.position.set(x, -0.25, z);
-      w.material = rubber;
-      w.parent = body;
-      targetWheels.push(w);
+    cabin.isPickable = false;
+    addBox("roof-panel", { width: dimensions.width * 0.56, height: 0.09, depth: dimensions.depth * 0.2 }, 0, dimensions.height * 1.17, -0.1, paint);
+    addBox("windshield", { width: dimensions.width * 0.58, height: 0.035, depth: dimensions.depth * 0.11 }, 0, dimensions.height * 0.98, dimensions.depth * 0.055, glass, -0.3);
+    addBox("rear-window", { width: dimensions.width * 0.56, height: 0.035, depth: dimensions.depth * 0.1 }, 0, dimensions.height * 0.94, -dimensions.depth * 0.2, glass, 0.3);
+    addBox("front-grille", { width: dimensions.width * 0.43, height: 0.13, depth: 0.045 }, 0, -0.015, dimensions.depth * 0.51, carbon);
+    addBox("front-grille-accent", { width: dimensions.width * 0.28, height: 0.025, depth: 0.05 }, 0, -0.015, dimensions.depth * 0.525, accent);
+    addBox("rear-lightbar", { width: dimensions.width * 0.72, height: 0.065, depth: 0.05 }, 0, 0.075, -dimensions.depth * 0.51, tail);
+
+    for (const x of [-0.65, 0.65]) {
+      addBox("headlight", { width: 0.38, height: 0.075, depth: 0.055 }, x, 0.075, dimensions.depth * 0.505, lamp);
+      addBox("front-air-vent", { width: 0.2, height: 0.13, depth: 0.05 }, x * 1.25, -0.055, dimensions.depth * 0.51, carbon);
+      addBox("mirror", { width: 0.22, height: 0.09, depth: 0.18 }, x * 1.22, 0.2, 0.36, paint);
     }
-    const spoiler = MeshBuilder.CreateBox(name + "-spoiler", { width: 1.75, height: 0.08, depth: 0.28 }, this.scene);
-    spoiler.position.set(0, -0.15, -1.6);
-    spoiler.parent = body;
 
-    const headlampMaterial = new StandardMaterial(name + "-headlamp-material", this.scene);
-    headlampMaterial.emissiveColor = new Color3(0.03, 0.65, 0.9);
-    const headlamp = MeshBuilder.CreateBox(name + "-headlamp", { width: 1.25, height: 0.09, depth: 0.07 }, this.scene);
-    headlamp.position.set(0, 0.03, 1.88);
-    headlamp.material = headlampMaterial;
-    headlamp.parent = body;
+    // Detailed low-poly wheel assemblies: rubber, alloy face, hub and five spokes.
+    const targetWheels = player ? this.wheels : [];
+    for (const x of [-dimensions.width * 0.49, dimensions.width * 0.49]) {
+      for (const z of [-dimensions.depth * 0.31, dimensions.depth * 0.31]) {
+        const wheel = MeshBuilder.CreateCylinder(name + "-wheel", { diameter: 0.76, height: 0.3, tessellation: 16 }, this.scene);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(x, -0.2, z);
+        wheel.material = tire;
+        wheel.parent = body;
+        wheel.isPickable = false;
+        targetWheels.push(wheel);
+        const outerX = x + Math.sign(x) * 0.155;
+        const rim = MeshBuilder.CreateCylinder(name + "-rim", { diameter: 0.52, height: 0.035, tessellation: 16 }, this.scene);
+        rim.rotation.z = Math.PI / 2;
+        rim.position.set(outerX, -0.2, z);
+        rim.material = chrome;
+        rim.parent = body;
+        rim.isPickable = false;
+        const hub = MeshBuilder.CreateCylinder(name + "-hub", { diameter: 0.17, height: 0.05, tessellation: 12 }, this.scene);
+        hub.rotation.z = Math.PI / 2;
+        hub.position.set(outerX + Math.sign(x) * 0.025, -0.2, z);
+        hub.material = accent;
+        hub.parent = body;
+        hub.isPickable = false;
+        for (let spoke = 0; spoke < 5; spoke++) {
+          const angle = spoke / 5 * Math.PI * 2;
+          const spokeMesh = MeshBuilder.CreateBox(name + "-spoke", { width: 0.035, height: 0.2, depth: 0.035 }, this.scene);
+          spokeMesh.position.set(outerX + Math.sign(x) * 0.022, -0.2 + Math.sin(angle) * 0.13, z + Math.cos(angle) * 0.13);
+          spokeMesh.rotation.x = -angle;
+          spokeMesh.material = carbon;
+          spokeMesh.parent = body;
+          spokeMesh.isPickable = false;
+        }
+      }
+    }
 
-    const taillampMaterial = new StandardMaterial(name + "-taillamp-material", this.scene);
-    taillampMaterial.emissiveColor = new Color3(0.95, 0.025, 0.12);
-    const taillamp = MeshBuilder.CreateBox(name + "-taillamp", { width: 1.15, height: 0.08, depth: 0.07 }, this.scene);
-    taillamp.position.set(0, 0.03, -1.88);
-    taillamp.material = taillampMaterial;
-    taillamp.parent = body;
-    headlamp.isPickable = false;
-    taillamp.isPickable = false;
+    // A proper raised wing and twin exhausts make the rear silhouette more distinct.
+    addBox("wing-left-support", { width: 0.07, height: 0.24, depth: 0.07 }, -0.48, 0.27, -dimensions.depth * 0.43, carbon);
+    addBox("wing-right-support", { width: 0.07, height: 0.24, depth: 0.07 }, 0.48, 0.27, -dimensions.depth * 0.43, carbon);
+    addBox("rear-wing", { width: dimensions.width * 0.94, height: 0.09, depth: 0.32 }, 0, 0.39, -dimensions.depth * 0.44, paint);
+    for (const x of [-0.36, 0.36]) {
+      const exhaust = MeshBuilder.CreateCylinder(name + "-exhaust", { diameter: 0.13, height: 0.16, tessellation: 10 }, this.scene);
+      exhaust.rotation.x = Math.PI / 2;
+      exhaust.position.set(x, -0.09, -dimensions.depth * 0.52);
+      exhaust.material = chrome;
+      exhaust.parent = body;
+      exhaust.isPickable = false;
+    }
+
+    if (player) {
+      const boostMaterial = new StandardMaterial(name + "-boost-flame-material", this.scene);
+      boostMaterial.diffuseColor = new Color3(0.02, 0.72, 1);
+      boostMaterial.emissiveColor = new Color3(0.05, 0.55, 1);
+      boostMaterial.disableLighting = true;
+      for (const x of [-0.36, 0.36]) {
+        const flame = MeshBuilder.CreateCylinder(name + "-boost-flame", { height: 0.92, diameterTop: 0.035, diameterBottom: 0.3, tessellation: 8 }, this.scene);
+        flame.rotation.x = Math.PI / 2;
+        flame.position.set(x, -0.04, -dimensions.depth * 0.55);
+        flame.material = boostMaterial;
+        flame.parent = body;
+        flame.isVisible = false;
+        flame.isPickable = false;
+        this.boostFlames.push(flame);
+      }
+    }
     return body;
+  }
+
+  private trackPoint(t: number): { x: number; z: number } {
+    const isDune = this.setup.track.id === "dune-canyon";
+    const isHarbor = this.setup.track.id === "harbor-run";
+    const warpX = isDune ? 0.16 : isHarbor ? -0.12 : 0;
+    const warpZ = isDune ? 0.07 : isHarbor ? 0.15 : 0;
+    return {
+      x: this.rx * (Math.cos(t) + warpX * Math.sin(2 * t)),
+      z: this.rz * (Math.sin(t) + warpZ * Math.sin(2 * t))
+    };
+  }
+
+  private trackNormal(t: number): { x: number; z: number } {
+    const before = this.trackPoint(t - 0.001);
+    const after = this.trackPoint(t + 0.001);
+    const dx = after.x - before.x;
+    const dz = after.z - before.z;
+    const length = Math.hypot(dx, dz) || 1;
+    return { x: dz / length, z: -dx / length };
+  }
+
+  private trackPosition(t: number, laneOffset = 0): { x: number; z: number } {
+    const point = this.trackPoint(t);
+    const normal = this.trackNormal(t);
+    return { x: point.x + normal.x * laneOffset, z: point.z + normal.z * laneOffset };
+  }
+
+  private trackHeading(t: number): number {
+    const before = this.trackPoint(t - 0.001);
+    const after = this.trackPoint(t + 0.001);
+    return Math.atan2(after.x - before.x, after.z - before.z);
   }
 
   private makeTrack() {
     const ground = MeshBuilder.CreateGround("arena-ground", { width: 180, height: 150 }, this.scene);
     const groundMat = new StandardMaterial("ground-mat", this.scene);
-    groundMat.diffuseColor = new Color3(0.045, 0.065, 0.085);
+    groundMat.diffuseColor = Color3.FromHexString(this.setup.track.ground);
     groundMat.specularColor = Color3.Black();
     ground.material = groundMat;
 
@@ -417,15 +614,10 @@ export class RacingScene {
     const segments = 112;
     for (let i = 0; i < segments; i++) {
       const t = i / segments * TAU;
-      const nxRaw = Math.cos(t) / RX;
-      const nzRaw = Math.sin(t) / RZ;
-      const normalLength = Math.hypot(nxRaw, nzRaw);
-      const nx = nxRaw / normalLength;
-      const nz = nzRaw / normalLength;
-      const cx = RX * Math.cos(t);
-      const cz = RZ * Math.sin(t);
-      inner.push(new Vector3(cx - nx * ROAD_HALF_WIDTH, 0.02, cz - nz * ROAD_HALF_WIDTH));
-      outer.push(new Vector3(cx + nx * ROAD_HALF_WIDTH, 0.02, cz + nz * ROAD_HALF_WIDTH));
+      const center = this.trackPoint(t);
+      const normal = this.trackNormal(t);
+      inner.push(new Vector3(center.x - normal.x * this.roadHalfWidth, 0.02, center.z - normal.z * this.roadHalfWidth));
+      outer.push(new Vector3(center.x + normal.x * this.roadHalfWidth, 0.02, center.z + normal.z * this.roadHalfWidth));
     }
 
     const road = MeshBuilder.CreateRibbon("closed-circuit", {
@@ -433,14 +625,43 @@ export class RacingScene {
       sideOrientation: Mesh.DOUBLESIDE
     }, this.scene);
     const roadMat = new StandardMaterial("road-mat", this.scene);
-    roadMat.diffuseColor = new Color3(0.12, 0.15, 0.19);
+    roadMat.diffuseColor = Color3.FromHexString(this.setup.track.road);
     roadMat.specularColor = new Color3(0.16, 0.18, 0.22);
+    roadMat.specularPower = 48;
     road.material = roadMat;
 
+    // Raised racing curbs and shoulders give the circuit a proper track profile.
+    const curbRed = new StandardMaterial("curb-red", this.scene);
+    curbRed.diffuseColor = this.setup.track.id === "dune-canyon" ? new Color3(0.92, 0.39, 0.16) : new Color3(0.85, 0.08, 0.14);
+    const curbWhite = new StandardMaterial("curb-white", this.scene);
+    curbWhite.diffuseColor = new Color3(0.78, 0.84, 0.87);
+    curbWhite.specularColor = new Color3(0.2, 0.23, 0.25);
+    const curbA = MeshBuilder.CreateBox("curb-a-template", { width: 0.62, height: 0.075, depth: 1.05 }, this.scene);
+    curbA.material = curbRed;
+    curbA.isPickable = false;
+    const curbB = MeshBuilder.CreateBox("curb-b-template", { width: 0.62, height: 0.075, depth: 1.05 }, this.scene);
+    curbB.material = curbWhite;
+    curbB.isPickable = false;
+    const curbSegments = 88;
+    for (let i = 0; i < curbSegments; i++) {
+      const t = i / curbSegments * TAU;
+      const point = this.trackPoint(t);
+      const normal = this.trackNormal(t);
+      const heading = this.trackHeading(t);
+      for (const side of [-1, 1]) {
+        const template = i % 2 === 0 ? curbA : curbB;
+        const curb = template.createInstance("curb-" + side + "-" + i);
+        curb.position.set(point.x + normal.x * side * (this.roadHalfWidth - 0.12), 0.085, point.z + normal.z * side * (this.roadHalfWidth - 0.12));
+        curb.rotation.y = heading;
+        curb.isPickable = false;
+        this.optionalScenery.push(curb);
+      }
+    }
+
     const outerLine = MeshBuilder.CreateLines("outer-neon-edge", { points: [...outer, outer[0]] }, this.scene);
-    outerLine.color = new Color3(0.05, 0.8, 0.98);
+    outerLine.color = Color3.FromHexString(this.setup.track.primary);
     const innerLine = MeshBuilder.CreateLines("inner-neon-edge", { points: [...inner, inner[0]] }, this.scene);
-    innerLine.color = new Color3(0.95, 0.035, 0.3);
+    innerLine.color = Color3.FromHexString(this.setup.track.secondary);
 
     const dashMat = new StandardMaterial("lane-markers", this.scene);
     dashMat.emissiveColor = new Color3(0.16, 0.28, 0.32);
@@ -449,8 +670,9 @@ export class RacingScene {
     for (let i = 0; i < 48; i++) {
       const t = i / 48 * TAU;
       const dash = i === 0 ? dashTemplate : dashTemplate.createInstance("lane-dash-" + i);
-      dash.position.set(RX * Math.cos(t), 0.045, RZ * Math.sin(t));
-      dash.rotation.y = Math.atan2(-RX * Math.sin(t), RZ * Math.cos(t));
+      const center = this.trackPoint(t);
+      dash.position.set(center.x, 0.045, center.z);
+      dash.rotation.y = this.trackHeading(t);
     }
 
     const finishMat = new StandardMaterial("start-line-mat", this.scene);
@@ -459,7 +681,7 @@ export class RacingScene {
     startTemplate.material = finishMat;
     for (let i = 0; i < 14; i++) {
       const square = i === 0 ? startTemplate : startTemplate.createInstance("start-grid-" + i);
-      square.position.set(-6.5 + i, 0.055, RZ);
+      square.position.set(-6.5 + i, 0.055, this.rz);
     }
     const markerMat = new StandardMaterial("track-marker", this.scene);
     markerMat.emissiveColor = new Color3(0.02, 0.32, 0.42);
@@ -468,7 +690,8 @@ export class RacingScene {
     for (let i = 0; i < 16; i++) {
       const t = i / 16 * TAU;
       const p = i === 0 ? beaconTemplate : beaconTemplate.createInstance("track-beacon-" + i);
-      p.position.set((RX + 11) * Math.cos(t), 0.75, (RZ + 10) * Math.sin(t));
+      const point = this.trackPosition(t, 11);
+      p.position.set(point.x, 0.75, point.z);
     }
   }
 
@@ -477,13 +700,17 @@ export class RacingScene {
     const skyMat = new StandardMaterial("sky-mat", this.scene);
     skyMat.backFaceCulling = false;
     skyMat.disableLighting = true;
-    skyMat.emissiveColor = new Color3(0.025, 0.04, 0.085);
+    skyMat.emissiveColor = Color3.FromHexString(this.setup.track.sky);
     sky.material = skyMat;
     sky.isPickable = false;
     const light = new HemisphericLight("ambient", new Vector3(0, 1, 0), this.scene);
-    light.intensity = 0.95;
+    light.intensity = 0.78;
     light.groundColor = new Color3(0.06, 0.08, 0.13);
-    const orb = MeshBuilder.CreateSphere("neon-orb", { diameter: 3, segments: 8 }, this.scene);
+    const keyLight = new HemisphericLight("track-fill", new Vector3(-0.35, 0.8, 0.4), this.scene);
+    keyLight.intensity = 0.38;
+    keyLight.diffuse = this.setup.track.id === "dune-canyon" ? new Color3(1, 0.63, 0.36) : new Color3(0.45, 0.68, 1);
+    keyLight.groundColor = new Color3(0.025, 0.035, 0.06);
+    const orb = MeshBuilder.CreateSphere("neon-orb", { diameter: 3, segments: 12 }, this.scene);
     orb.position.set(-20, 12, 28);
     const orbMat = new StandardMaterial("orb-mat", this.scene);
     orbMat.emissiveColor = new Color3(0.02, 0.45, 0.75);
@@ -491,19 +718,34 @@ export class RacingScene {
   }
 
   private makeCity() {
-    const styles = [
-      { width: 3.4, depth: 3.8, height: 8, bodyColor: new Color3(0.035, 0.07, 0.12), neonColor: new Color3(0.02, 0.48, 0.68) },
-      { width: 4.1, depth: 3.4, height: 12, bodyColor: new Color3(0.055, 0.06, 0.12), neonColor: new Color3(0.22, 0.08, 0.62) },
+    const isDune = this.setup.track.id === "dune-canyon";
+    const isHarbor = this.setup.track.id === "harbor-run";
+    const primary = Color3.FromHexString(this.setup.track.primary);
+    const secondary = Color3.FromHexString(this.setup.track.secondary);
+    const styles = isDune ? [
+      { width: 7.2, depth: 9.4, height: 17, bodyColor: new Color3(0.27, 0.14, 0.075), neonColor: primary },
+      { width: 10.5, depth: 8.2, height: 12, bodyColor: new Color3(0.35, 0.19, 0.09), neonColor: secondary },
+      { width: 6.4, depth: 12.1, height: 23, bodyColor: new Color3(0.22, 0.13, 0.09), neonColor: new Color3(0.82, 0.36, 0.13) },
+      { width: 8.7, depth: 7.6, height: 15, bodyColor: new Color3(0.39, 0.23, 0.12), neonColor: new Color3(0.94, 0.54, 0.2) }
+    ] : isHarbor ? [
+      { width: 5.6, depth: 8.4, height: 12, bodyColor: new Color3(0.045, 0.13, 0.17), neonColor: primary },
+      { width: 7.8, depth: 5.8, height: 16, bodyColor: new Color3(0.06, 0.11, 0.17), neonColor: secondary },
+      { width: 4.3, depth: 10.8, height: 8, bodyColor: new Color3(0.035, 0.18, 0.2), neonColor: new Color3(0.16, 0.7, 0.72) },
+      { width: 8.2, depth: 5.2, height: 19, bodyColor: new Color3(0.055, 0.09, 0.15), neonColor: new Color3(0.21, 0.52, 0.87) }
+    ] : [
+      { width: 3.4, depth: 3.8, height: 8, bodyColor: new Color3(0.035, 0.07, 0.12), neonColor: primary },
+      { width: 4.1, depth: 3.4, height: 12, bodyColor: new Color3(0.055, 0.06, 0.12), neonColor: secondary },
       { width: 3.2, depth: 4.2, height: 16, bodyColor: new Color3(0.04, 0.075, 0.11), neonColor: new Color3(0.68, 0.035, 0.19) },
       { width: 4.6, depth: 3.8, height: 10, bodyColor: new Color3(0.065, 0.07, 0.1), neonColor: new Color3(0.04, 0.48, 0.38) }
     ];
     const templates: Array<{ body: Mesh; stripe: Mesh } | undefined> = new Array(styles.length);
-    const towerCount = 40;
+    const towerCount = isDune ? 26 : isHarbor ? 34 : 40;
 
     for (let i = 0; i < towerCount; i++) {
       const t = i / towerCount * TAU + 0.035;
-      const x = (RX + 20) * Math.cos(t);
-      const z = (RZ + 18) * Math.sin(t);
+      const point = this.trackPosition(t, this.roadHalfWidth + (isDune ? 14 : isHarbor ? 12 : 20));
+      const x = point.x;
+      const z = point.z;
       const styleIndex = i % styles.length;
       const style = styles[styleIndex];
       let body: Mesh | ReturnType<Mesh["createInstance"]>;
@@ -541,43 +783,107 @@ export class RacingScene {
     }
 
     const cyan = new StandardMaterial("start-gate-cyan", this.scene);
-    cyan.emissiveColor = new Color3(0.02, 0.68, 0.9);
+    cyan.emissiveColor = primary;
     const pink = new StandardMaterial("start-gate-pink", this.scene);
-    pink.emissiveColor = new Color3(0.92, 0.025, 0.19);
+    pink.emissiveColor = secondary;
 
     for (const side of [-1, 1]) {
       const post = MeshBuilder.CreateBox("start-gate-post", { width: 0.42, height: 6.2, depth: 0.42 }, this.scene);
-      post.position.set(side * 9.1, 3.1, RZ);
+      post.position.set(side * 9.1, 3.1, this.rz);
       post.material = side < 0 ? cyan : pink;
       post.isPickable = false;
     }
     const crossbar = MeshBuilder.CreateBox("start-gate-crossbar", { width: 18.2, height: 0.24, depth: 0.35 }, this.scene);
-    crossbar.position.set(0, 6.15, RZ);
+    crossbar.position.set(0, 6.15, this.rz);
     crossbar.material = cyan;
     crossbar.isPickable = false;
+
+    // Repeating overhead light rigs establish scale and help the road read at speed.
+    const poleMaterial = new StandardMaterial("track-light-pole-material", this.scene);
+    poleMaterial.diffuseColor = new Color3(0.09, 0.13, 0.18);
+    const lampMaterial = new StandardMaterial("track-light-emissive-material", this.scene);
+    lampMaterial.emissiveColor = primary;
+    lampMaterial.disableLighting = true;
+    const poleTemplate = MeshBuilder.CreateCylinder("track-light-pole-template", { height: 5.5, diameter: 0.16, tessellation: 8 }, this.scene);
+    poleTemplate.material = poleMaterial;
+    poleTemplate.isPickable = false;
+    const armTemplate = MeshBuilder.CreateBox("track-light-arm-template", { width: 1.25, height: 0.12, depth: 0.12 }, this.scene);
+    armTemplate.material = poleMaterial;
+    armTemplate.isPickable = false;
+    const lampTemplate = MeshBuilder.CreateBox("track-light-lamp-template", { width: 0.72, height: 0.12, depth: 0.35 }, this.scene);
+    lampTemplate.material = lampMaterial;
+    lampTemplate.isPickable = false;
+    const lightCount = this.setup.track.id === "dune-canyon" ? 8 : 12;
+    for (let i = 0; i < lightCount; i++) {
+      const t = i / lightCount * TAU + 0.1;
+      const point = this.trackPosition(t, this.roadHalfWidth + 3.8);
+      const heading = this.trackHeading(t);
+      const pole = poleTemplate.createInstance("track-light-pole-" + i);
+      pole.position.set(point.x, 2.75, point.z);
+      const arm = armTemplate.createInstance("track-light-arm-" + i);
+      arm.position.set(point.x - Math.cos(heading) * 0.45, 5.35, point.z + Math.sin(heading) * 0.45);
+      arm.rotation.y = heading;
+      const fixture = lampTemplate.createInstance("track-light-fixture-" + i);
+      fixture.position.set(point.x - Math.cos(heading) * 0.9, 5.22, point.z + Math.sin(heading) * 0.9);
+      fixture.rotation.y = heading;
+      this.optionalScenery.push(pole, arm, fixture);
+    }
+
+    if (isDune) {
+      const rockMaterial = new StandardMaterial("dune-rock-material", this.scene);
+      rockMaterial.diffuseColor = new Color3(0.29, 0.17, 0.11);
+      rockMaterial.specularColor = new Color3(0.08, 0.055, 0.04);
+      const rockTemplate = MeshBuilder.CreateSphere("dune-rock-template", { diameter: 1, segments: 5 }, this.scene);
+      rockTemplate.material = rockMaterial;
+      rockTemplate.isPickable = false;
+      for (let i = 0; i < 32; i++) {
+        const t = i / 32 * TAU + 0.17;
+        const point = this.trackPosition(t, this.roadHalfWidth + 8 + (i % 4) * 2.1);
+        const rock = i === 0 ? rockTemplate : rockTemplate.createInstance("dune-rock-" + i);
+        const size = 1.4 + (i % 5) * 0.72;
+        rock.position.set(point.x, size * 0.32, point.z);
+        rock.scaling.set(size * 1.3, size * 0.72, size);
+        rock.rotation.y = i * 0.63;
+        this.optionalScenery.push(rock);
+      }
+    }
+
+    if (isHarbor) {
+      const containerColors = [new Color3(0.05, 0.24, 0.3), new Color3(0.12, 0.18, 0.28), new Color3(0.42, 0.19, 0.11)];
+      for (let i = 0; i < 18; i++) {
+        const t = i / 18 * TAU + 0.25;
+        const point = this.trackPosition(t, this.roadHalfWidth + 9 + (i % 3) * 2.8);
+        const container = MeshBuilder.CreateBox("harbor-container-" + i, { width: 4.2, height: 2.5, depth: 2.2 }, this.scene);
+        const material = new StandardMaterial("harbor-container-material-" + i, this.scene);
+        material.diffuseColor = containerColors[i % containerColors.length];
+        material.specularColor = new Color3(0.18, 0.2, 0.24);
+        container.material = material;
+        container.position.set(point.x, 1.25 + (i % 2) * 2.55, point.z);
+        container.rotation.y = this.trackHeading(t) + (i % 2 ? 0.16 : -0.12);
+        container.isPickable = false;
+        this.optionalScenery.push(container);
+      }
+    }
   }
 
   private makeOpponents() {
+    // AI pace is intentionally close to a stock car's race pace so the player must
+    // use braking, clean lines and nitro instead of winning by top-speed alone.
+    const aiScale = this.setup.difficulty === "easy" ? 0.86 : this.setup.difficulty === "hard" ? 1.1 : 1;
     const configs = [
-      { progress: 0.24, speed: 116, lane: -2.8, color: new Color3(0.04, 0.3, 0.92) },
-      { progress: 0.53, speed: 126, lane: 0, color: new Color3(0.92, 0.52, 0.035) },
-      { progress: 0.84, speed: 108, lane: 2.8, color: new Color3(0.12, 0.75, 0.42) }
+      { progress: 0.24, speed: 178 * aiScale, lane: -2.8, color: new Color3(0.04, 0.3, 0.92) },
+      { progress: 0.53, speed: 190 * aiScale, lane: 0, color: new Color3(0.92, 0.52, 0.035) },
+      { progress: 0.84, speed: 170 * aiScale, lane: 2.8, color: new Color3(0.12, 0.75, 0.42) }
     ];
     this.opponents = configs.map((config, i) => {
       const mesh = this.makeCar("opponent-" + (i + 1), config.color, false);
       const t = Math.PI / 2 + config.progress;
-      const nxRaw = Math.cos(t) / RX;
-      const nzRaw = Math.sin(t) / RZ;
-      const nLength = Math.hypot(nxRaw, nzRaw);
-      mesh.position.set(
-        RX * Math.cos(t) + nxRaw / nLength * config.lane,
-        0.65,
-        RZ * Math.sin(t) + nzRaw / nLength * config.lane
-      );
-      mesh.rotation.y = Math.atan2(-RX * Math.sin(t), RZ * Math.cos(t));
+      const point = this.trackPosition(t, config.lane);
+      mesh.position.set(point.x, 0.65, point.z);
+      mesh.rotation.y = this.trackHeading(t);
       // The helper only registers player wheels; gather the opponent's four wheels by name.
       const wheels = this.scene.meshes.filter(m => m.name === "opponent-" + (i + 1) + "-wheel") as Mesh[];
-      return { mesh, progress: config.progress, startProgress: config.progress, speed: config.speed, lane: config.lane, wheels };
+      return { mesh, progress: config.progress, startProgress: config.progress, speed: config.speed, lane: config.lane, wheels, destroyed: false };
     });
   }
 

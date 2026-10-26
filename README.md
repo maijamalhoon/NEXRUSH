@@ -1,56 +1,63 @@
 # NEXRUSH
 
-**A performance-first 3D browser racing prototype.** Race a closed neon circuit against three computer-controlled rivals with a start countdown, lap/best-lap timing, arcade drifting, reset, adaptive rendering and mobile touch controls. Real-time multiplayer is planned for a later milestone.
+**A performance-first 3D browser arcade racer.** NEXRUSH is a browser game prototype built with React, TypeScript, Vite and Babylon.js. The current milestone includes an interactive 3D vehicle showroom, more detailed procedural vehicle geometry, raised racing curbs, track lighting, atmospheric depth and track-specific desert/harbor scenery, alongside the garage, upgrades, AI races and three-lap finish.
 
 ## Live preview
 
-Play the current browser prototype: https://nexrush.vercel.app/
+Production preview: https://nexrush.vercel.app/
 
 ## Run locally
 
-Requirements: Node.js 22 or a current supported LTS release, plus a modern browser with WebGL enabled.
+Use Node.js 22 or a current supported LTS release and a modern browser with WebGL:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. Run the racing logic tests with `npm test`. Create an optimized production bundle with `npm run build`; preview it locally with `npm run preview`.
+Run the test suite and optimized build:
+
+```bash
+npm test
+npm run build
+```
+
+## Current game loop
+
+1. The landing hub leads to track selection.
+2. Choose Neon City, Dune Canyon or Harbor Run, then choose a vehicle in the garage.
+3. Five original fictional cars have individual stats and unlock prices. The Vortex R is the starter vehicle.
+4. Equip paint skins and upgrade engine mapping, suspension/handling, nitro capacity or chassis armor using in-game credits.
+5. Race against three AI rivals on Easy, Medium or Hard. Rivals have more competitive pace and subtly vary their racing lines. High-speed contact can take down rivals and reward credits.
+6. Complete three laps to finish a race. Race completion grants a position/difficulty reward, and best times are stored per track.
+7. Coins, vehicle ownership, unlocked paint, equipped colors, upgrades, takedown total and best times are saved in the browser's local storage on the current device.
 
 ## Controls
 
 | Action | Keyboard | Mobile |
 |---|---|---|
-| Accelerate | W / Up Arrow | ▲ |
-| Brake / reverse | S / Down Arrow | ▼ |
-| Steer | A / D or Left / Right | ◀ / ▶ |
-| Handbrake | Space | ✦ |
-| Reset car | R | ↻ reset button |
-| Help | Select the ? button | Select the ? button |
+| Accelerate | W / Up Arrow | GAS button |
+| Brake / reverse | S / Down Arrow | BRAKE button |
+| Steer | A / D or Left / Right | Left / right buttons |
+| Nitro boost | Space | BOOST button |
+| Drift / handbrake | Shift | DRIFT button |
+| Reset race | R | Reset icon |
+| Show controls | ? | ? |
 
-## Current prototype
+## Performance and architecture
 
-- Babylon.js 3D scene with a closed oval circuit, neon track edges, lane markers and a chase camera.
-- Three lightweight AI rivals following the circuit at different target speeds and offset racing lines.
-- Instanced low-poly neon skyline, start gate, and emissive front/rear car lights; Performance mode hides optional skyline detail.
-- Race countdown and GO cue; session timer, live lap timer, last/best lap records, and reset-to-grid restart.
-- Race countdown, lap records and current lap clock are updated independently from frame-rate; the reset starts a fresh session.
-- Arcade acceleration, braking, handbrake and lateral-momentum drift model, grass slowdown, simple opponent contact response, and reset-to-grid control.
-- Live speed, RPM, gear, elapsed time, lap, position and off-road HUD indicators.
-- Auto, Performance, Balanced and High rendering quality settings. Auto mode adjusts render resolution and uses hysteresis before restoring optional scenery detail to avoid quality flicker.
-- Responsive desktop/mobile HUD and touch controls.
-- Unit tests for deterministic lap-crossing, off-road drag and drift-angle math.
-- GitHub Actions workflow for unit tests, TypeScript checking and production builds on pushes and pull requests to `main`.
+- Babylon.js is dynamically imported so the engine is not included in the first UI chunk.
+- Adaptive rendering scales the render resolution based on observed frame rate; Performance, Balanced and High modes are also available.
+- Race cars now use layered body panels, glazing, headlamps, taillights, splitters, wings, twin exhausts and detailed wheel/rim assemblies. The garage and tuning screen have an interactive 3D showroom with studio lighting and drag-to-inspect camera controls.
+- Tracks use raised curb segments, fog/depth treatment, overhead light rigs, and distinct desert rock or harbor cargo scenery. The game still uses procedural low-poly geometry rather than photorealistic licensed GLB car models. Nitro adds exhaust flames, speed-line feedback and a speed-responsive chase camera; drifts bank a visible combo score, while impacts add a short camera response.
+- Track presets use different procedural road curves, dimensions, road materials, color palettes and scenery profiles for Neon City, Dune Canyon and Harbor Run. They share the same three-lap closed-loop race model; hand-authored routes, detailed environment assets and imported vehicle meshes remain a planned graphics milestone.
+- The browser save is local to one device/profile. There is no cross-device account sync, cloud economy or online multiplayer yet.
+- No physical mobile-device compatibility or frame-rate guarantee is claimed until real-device testing is completed.
 
-## Current limitations
+## Current limitations / next milestones
 
-This is an early arcade prototype, not a finished racing simulator. The AI currently follows a fixed racing line and speed; tire physics, polished drift behaviour, full collision geometry, finished race-results screen, sound, car selection, accessibility testing, and real-time multiplayer are not implemented yet. The CI TypeScript check and production build have passed. Real browser/device compatibility and frame-rate performance still need hands-on testing before calling the prototype release-ready.
+NEXRUSH is still a prototype, not an Asphalt Legends replacement. AI opponents use simple speed pacing and lane variation rather than full path-planning or learning. Damage/takedowns and collision geometry are arcade approximations. Distinct hand-authored spline tracks, fully unique 3D environments, richer car models/animation, sound, controller support, detailed results/leaderboards, cloud accounts and real-time multiplayer need further work. Image/video generation can help establish art direction and create promotional visuals, but interactive vehicles and tracks still need optimized 3D models, textures, collision and gameplay logic.
 
-## Development direction
+## Manual testing
 
-1. Verify and stabilize the production build.
-2. Improve vehicle handling, track boundaries and collision behaviour.
-3. Add race starts, checkpoints, lap records and opponent difficulty.
-4. Profile desktop and lower-end mobile devices; tune automatic quality from measured results.
-5. Add audio, car/track selection and a deployment preview.
-6. Design multiplayer architecture only after the solo race loop is reliable.
+Use [docs/PLAYTEST.md](docs/PLAYTEST.md) for the browser/device checklist. Do not mark a device or browser as supported until it has actually been tested.
