@@ -33,7 +33,7 @@ Open the local URL printed by Vite. Run the racing logic tests with `npm test`. 
 - Babylon.js 3D scene with a closed oval circuit, neon track edges, lane markers and a chase camera.
 - Three lightweight AI rivals following the circuit at different target speeds and offset racing lines.
 - Instanced low-poly neon skyline, start gate, and emissive front/rear car lights; Performance mode hides optional skyline detail.
-- Race countdown and GO cue; session timer, live lap timer, last/best lap records, and reset-to-grid restart.
+- Three-lap race loop with a 3–2–1 start countdown, GO cue, live session/lap timers, last/best lap records, final position, and reset-to-grid restart.
 - Race countdown, lap records and current lap clock are updated independently from frame-rate; the reset starts a fresh session.
 - Arcade acceleration, braking, handbrake and lateral-momentum drift model, grass slowdown, simple opponent contact response, and reset-to-grid control.
 - Live speed, RPM, gear, elapsed time, lap, position and off-road HUD indicators.
@@ -44,11 +44,11 @@ Open the local URL printed by Vite. Run the racing logic tests with `npm test`. 
 
 ## Current limitations
 
-This is an early arcade prototype, not a finished racing simulator. The AI currently follows a fixed racing line and speed; tire physics, polished drift behaviour, full collision geometry, finished race-results screen, sound, car selection, accessibility testing, and real-time multiplayer are not implemented yet. The CI TypeScript check and production build have passed. Real browser/device compatibility and frame-rate performance still need hands-on testing before calling the prototype release-ready.
+This is an early arcade prototype, not a finished racing simulator. The AI currently follows a fixed racing line and speed; tire physics, polished drift behaviour, full collision geometry, detailed race-results screen, sound, car selection, accessibility testing, and real-time multiplayer are not implemented yet. The CI TypeScript check and production build have passed. Real browser/device compatibility and frame-rate performance still need hands-on testing before calling the prototype release-ready.
 
 ## Development direction
 
-1. Verify and stabilize the production build.
+1. Continue stabilizing gameplay and production builds with repeatable tests.
 2. Improve vehicle handling, track boundaries and collision behaviour.
 3. Add race starts, checkpoints, lap records and opponent difficulty.
 4. Profile desktop and lower-end mobile devices; tune automatic quality from measured results.
