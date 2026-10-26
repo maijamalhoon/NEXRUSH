@@ -105,6 +105,9 @@ export class RacingScene {
     this.engine.setHardwareScalingLevel(1 / this.autoScale);
     this.scene = new Scene(this.engine);
     this.scene.clearColor = Color4.FromHexString(setup.track.sky + "ff");
+    this.scene.fogMode = Scene.FOGMODE_EXP2;
+    this.scene.fogDensity = setup.track.id === "dune-canyon" ? 0.0017 : 0.00125;
+    this.scene.fogColor = Color3.FromHexString(setup.track.sky);
     this.scene.skipPointerMovePicking = true;
     this.camera = new ArcRotateCamera("chase", 0, 1.08, 13, new Vector3(0, 0.7, this.rz), this.scene);
     this.camera.lowerRadiusLimit = 9;
@@ -701,9 +704,13 @@ export class RacingScene {
     sky.material = skyMat;
     sky.isPickable = false;
     const light = new HemisphericLight("ambient", new Vector3(0, 1, 0), this.scene);
-    light.intensity = 0.95;
+    light.intensity = 0.78;
     light.groundColor = new Color3(0.06, 0.08, 0.13);
-    const orb = MeshBuilder.CreateSphere("neon-orb", { diameter: 3, segments: 8 }, this.scene);
+    const keyLight = new HemisphericLight("track-fill", new Vector3(-0.35, 0.8, 0.4), this.scene);
+    keyLight.intensity = 0.38;
+    keyLight.diffuse = this.setup.track.id === "dune-canyon" ? new Color3(1, 0.63, 0.36) : new Color3(0.45, 0.68, 1);
+    keyLight.groundColor = new Color3(0.025, 0.035, 0.06);
+    const orb = MeshBuilder.CreateSphere("neon-orb", { diameter: 3, segments: 12 }, this.scene);
     orb.position.set(-20, 12, 28);
     const orbMat = new StandardMaterial("orb-mat", this.scene);
     orbMat.emissiveColor = new Color3(0.02, 0.45, 0.75);
@@ -790,6 +797,73 @@ export class RacingScene {
     crossbar.position.set(0, 6.15, this.rz);
     crossbar.material = cyan;
     crossbar.isPickable = false;
+
+    // Repeating overhead light rigs establish scale and help the road read at speed.
+    const poleMaterial = new StandardMaterial("track-light-pole-material", this.scene);
+    poleMaterial.diffuseColor = new Color3(0.09, 0.13, 0.18);
+    const lampMaterial = new StandardMaterial("track-light-emissive-material", this.scene);
+    lampMaterial.emissiveColor = primary;
+    lampMaterial.disableLighting = true;
+    const poleTemplate = MeshBuilder.CreateCylinder("track-light-pole-template", { height: 5.5, diameter: 0.16, tessellation: 8 }, this.scene);
+    poleTemplate.material = poleMaterial;
+    poleTemplate.isPickable = false;
+    const armTemplate = MeshBuilder.CreateBox("track-light-arm-template", { width: 1.25, height: 0.12, depth: 0.12 }, this.scene);
+    armTemplate.material = poleMaterial;
+    armTemplate.isPickable = false;
+    const lampTemplate = MeshBuilder.CreateBox("track-light-lamp-template", { width: 0.72, height: 0.12, depth: 0.35 }, this.scene);
+    lampTemplate.material = lampMaterial;
+    lampTemplate.isPickable = false;
+    const lightCount = this.setup.track.id === "dune-canyon" ? 8 : 12;
+    for (let i = 0; i < lightCount; i++) {
+      const t = i / lightCount * TAU + 0.1;
+      const point = this.trackPosition(t, this.roadHalfWidth + 3.8);
+      const heading = this.trackHeading(t);
+      const pole = poleTemplate.createInstance("track-light-pole-" + i);
+      pole.position.set(point.x, 2.75, point.z);
+      const arm = armTemplate.createInstance("track-light-arm-" + i);
+      arm.position.set(point.x - Math.cos(heading) * 0.45, 5.35, point.z + Math.sin(heading) * 0.45);
+      arm.rotation.y = heading;
+      const fixture = lampTemplate.createInstance("track-light-fixture-" + i);
+      fixture.position.set(point.x - Math.cos(heading) * 0.9, 5.22, point.z + Math.sin(heading) * 0.9);
+      fixture.rotation.y = heading;
+      this.optionalScenery.push(pole, arm, fixture);
+    }
+
+    if (isDune) {
+      const rockMaterial = new StandardMaterial("dune-rock-material", this.scene);
+      rockMaterial.diffuseColor = new Color3(0.29, 0.17, 0.11);
+      rockMaterial.specularColor = new Color3(0.08, 0.055, 0.04);
+      const rockTemplate = MeshBuilder.CreateSphere("dune-rock-template", { diameter: 1, segments: 5 }, this.scene);
+      rockTemplate.material = rockMaterial;
+      rockTemplate.isPickable = false;
+      for (let i = 0; i < 32; i++) {
+        const t = i / 32 * TAU + 0.17;
+        const point = this.trackPosition(t, this.roadHalfWidth + 8 + (i % 4) * 2.1);
+        const rock = i === 0 ? rockTemplate : rockTemplate.createInstance("dune-rock-" + i);
+        const size = 1.4 + (i % 5) * 0.72;
+        rock.position.set(point.x, size * 0.32, point.z);
+        rock.scaling.set(size * 1.3, size * 0.72, size);
+        rock.rotation.y = i * 0.63;
+        this.optionalScenery.push(rock);
+      }
+    }
+
+    if (isHarbor) {
+      const containerColors = [new Color3(0.05, 0.24, 0.3), new Color3(0.12, 0.18, 0.28), new Color3(0.42, 0.19, 0.11)];
+      for (let i = 0; i < 18; i++) {
+        const t = i / 18 * TAU + 0.25;
+        const point = this.trackPosition(t, this.roadHalfWidth + 9 + (i % 3) * 2.8);
+        const container = MeshBuilder.CreateBox("harbor-container-" + i, { width: 4.2, height: 2.5, depth: 2.2 }, this.scene);
+        const material = new StandardMaterial("harbor-container-material-" + i, this.scene);
+        material.diffuseColor = containerColors[i % containerColors.length];
+        material.specularColor = new Color3(0.18, 0.2, 0.24);
+        container.material = material;
+        container.position.set(point.x, 1.25 + (i % 2) * 2.55, point.z);
+        container.rotation.y = this.trackHeading(t) + (i % 2 ? 0.16 : -0.12);
+        container.isPickable = false;
+        this.optionalScenery.push(container);
+      }
+    }
   }
 
   private makeOpponents() {
