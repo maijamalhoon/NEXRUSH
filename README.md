@@ -49,7 +49,7 @@ npm run build
 - Babylon.js is dynamically imported so the engine is not included in the first UI chunk.
 - Adaptive rendering scales the render resolution based on observed frame rate; Performance, Balanced and High modes are also available.
 - The game uses low-poly procedural vehicle meshes and instanced city scenery instead of loading a heavyweight asset pack at startup.
-- Track presets adjust the circuit dimensions, road materials and color palette. Each preset currently shares the same core closed-loop driving model; bespoke spline layouts and unique large environmental asset sets remain a planned graphics milestone.
+- Track presets use different procedural road curves, dimensions, road materials, color palettes and scenery profiles for Neon City, Dune Canyon and Harbor Run. They share the same three-lap closed-loop race model; hand-authored routes, detailed environment assets and imported vehicle meshes remain a planned graphics milestone.
 - The browser save is local to one device/profile. There is no cross-device account sync, cloud economy or online multiplayer yet.
 - No physical mobile-device compatibility or frame-rate guarantee is claimed until real-device testing is completed.
 
