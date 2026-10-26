@@ -333,7 +333,7 @@ export class RacingScene {
     this.opponents = configs.map((config, i) => {
       const mesh = this.makeCar("opponent-" + (i + 1), config.color, false);
       const t = Math.PI / 2 + config.progress;
-      mesh.position.set(RX * Math.cos(t), 0, RZ * Math.sin(t));
+      mesh.position.set(RX * Math.cos(t), 0.65, RZ * Math.sin(t));
       mesh.rotation.y = Math.atan2(-RX * Math.sin(t), RZ * Math.cos(t));
       // The helper only registers player wheels; gather the opponent's four wheels by name.
       const wheels = this.scene.meshes.filter(m => m.name === "opponent-" + (i + 1) + "-wheel") as Mesh[];
