@@ -281,28 +281,31 @@ export class RacingScene {
 
     const dashMat = new StandardMaterial("lane-markers", this.scene);
     dashMat.emissiveColor = new Color3(0.16, 0.28, 0.32);
+    const dashTemplate = MeshBuilder.CreateBox("lane-dash-0", { width: 0.12, height: 0.025, depth: 1.5 }, this.scene);
+    dashTemplate.material = dashMat;
     for (let i = 0; i < 48; i++) {
       const t = i / 48 * TAU;
-      const dash = MeshBuilder.CreateBox("lane-dash", { width: 0.12, height: 0.025, depth: 1.5 }, this.scene);
+      const dash = i === 0 ? dashTemplate : dashTemplate.createInstance("lane-dash-" + i);
       dash.position.set(RX * Math.cos(t), 0.045, RZ * Math.sin(t));
       dash.rotation.y = Math.atan2(-RX * Math.sin(t), RZ * Math.cos(t));
-      dash.material = dashMat;
     }
 
     const finishMat = new StandardMaterial("start-line-mat", this.scene);
     finishMat.emissiveColor = new Color3(0.28, 0.38, 0.45);
+    const startTemplate = MeshBuilder.CreateBox("start-grid-0", { width: 1, height: 0.035, depth: 0.82 }, this.scene);
+    startTemplate.material = finishMat;
     for (let i = 0; i < 14; i++) {
-      const square = MeshBuilder.CreateBox("start-grid", { width: 1, height: 0.035, depth: 0.82 }, this.scene);
+      const square = i === 0 ? startTemplate : startTemplate.createInstance("start-grid-" + i);
       square.position.set(-6.5 + i, 0.055, RZ);
-      square.material = finishMat;
     }
     const markerMat = new StandardMaterial("track-marker", this.scene);
     markerMat.emissiveColor = new Color3(0.02, 0.32, 0.42);
+    const beaconTemplate = MeshBuilder.CreateCylinder("track-beacon-0", { height: 1.5, diameter: 0.22, tessellation: 6 }, this.scene);
+    beaconTemplate.material = markerMat;
     for (let i = 0; i < 16; i++) {
       const t = i / 16 * TAU;
-      const p = MeshBuilder.CreateCylinder("track-beacon", { height: 1.5, diameter: 0.22, tessellation: 6 }, this.scene);
+      const p = i === 0 ? beaconTemplate : beaconTemplate.createInstance("track-beacon-" + i);
       p.position.set((RX + 11) * Math.cos(t), 0.75, (RZ + 10) * Math.sin(t));
-      p.material = markerMat;
     }
   }
 
