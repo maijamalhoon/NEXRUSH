@@ -2,7 +2,7 @@ import {ArcRotateCamera,Color3,Color4,Engine,HemisphericLight,Mesh,MeshBuilder,P
 export type QualityMode="auto"|"low"|"medium"|"high";
 export interface Telemetry{speed:number;rpm:number;gear:number;elapsed:number}
 type Control="left"|"right"|"accelerate"|"brake"|"handbrake";
-const scales={low:1.55,medium:1.22,high:1};
+const scales={low:0.65,medium:0.82,high:1};
 export class RacingScene{
  private engine:Engine;private scene:Scene;private camera:ArcRotateCamera;private car:Mesh;private wheels:Mesh[]=[];private keys=new Set<string>();private controls=new Set<Control>();private mode:QualityMode="auto";private speed=0;private heading=0;private elapsed=0;private fpsFrames=0;private fpsStart=performance.now();private lowSamples=0;private autoScale=1.22;private disposed=false;private lastHud=0;
  private down=(e:KeyboardEvent)=>{const k=e.key.toLowerCase();if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(k))e.preventDefault();this.keys.add(k)};
