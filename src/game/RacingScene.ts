@@ -15,7 +15,7 @@ export interface Telemetry {
   driftAngle: number;
 }
 type Control = "left" | "right" | "accelerate" | "brake" | "handbrake";
-type Opponent = { mesh: Mesh; progress: number; speed: number; lane: number; wheels: Mesh[] };
+type Opponent = { mesh: Mesh; progress: number; startProgress: number; speed: number; lane: number; wheels: Mesh[] };
 
 const scales = { low: 0.62, medium: 0.8, high: 1 };
 const RX = 34;
@@ -51,6 +51,11 @@ export class RacingScene {
   private collisionCooldown = 0;
   private down = (e: KeyboardEvent) => {
     const k = e.key.toLowerCase();
+    if (k === "r" && !e.repeat) {
+      e.preventDefault();
+      this.resetCar();
+      return;
+    }
     if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
     this.keys.add(k);
   };
@@ -113,6 +118,37 @@ export class RacingScene {
     this.applyQuality();
   }
 
+  resetCar() {
+    this.speed = 0;
+    this.lateralVelocity = 0;
+    this.heading = -Math.PI / 2;
+    this.elapsed = 0;
+    this.lap = 1;
+    this.lapProgress = 0;
+    this.lastProgress = 0;
+    this.offTrack = false;
+    this.collisionCooldown = 0;
+    this.car.position.set(0, 0.65, RZ);
+    this.car.rotation.y = this.heading;
+    this.camera.alpha = 0;
+    this.camera.radius = 12;
+    this.camera.target.set(0, 1.3, RZ);
+    for (const opponent of this.opponents) {
+      opponent.progress = opponent.startProgress;
+      const t = Math.PI / 2 + opponent.progress;
+      const nxRaw = Math.cos(t) / RX;
+      const nzRaw = Math.sin(t) / RZ;
+      const nLength = Math.hypot(nxRaw, nzRaw);
+      opponent.mesh.position.set(
+        RX * Math.cos(t) + nxRaw / nLength * opponent.lane,
+        0.65,
+        RZ * Math.sin(t) + nzRaw / nLength * opponent.lane
+      );
+      opponent.mesh.rotation.y = Math.atan2(-RX * Math.sin(t), RZ * Math.cos(t));
+    }
+    this.onTelemetry({ speed: 0, rpm: 900, gear: 1, elapsed: 0, lap: 1, position: 4, offTrack: false, driftAngle: 0 });
+  }
+
   private applyQuality() {
     const scale = this.mode === "auto" ? this.autoScale : scales[this.mode];
     this.engine.setHardwareScalingLevel(1 / scale);
@@ -154,7 +190,7 @@ export class RacingScene {
       if (this.speed > 5) this.speed -= 52 * dt;
       else this.speed -= 20 * dt;
     }
-    if (hand) this.speed -= Math.sign(this.speed || 1) * 13 * dt;
+    if (hand) this.speed *= Math.exp(-2.4 * dt);
     this.speed = clamp(this.speed, -28, 220);
 
     const steering = Number(right) - Number(left);
@@ -373,7 +409,7 @@ export class RacingScene {
       mesh.rotation.y = Math.atan2(-RX * Math.sin(t), RZ * Math.cos(t));
       // The helper only registers player wheels; gather the opponent's four wheels by name.
       const wheels = this.scene.meshes.filter(m => m.name === "opponent-" + (i + 1) + "-wheel") as Mesh[];
-      return { mesh, progress: config.progress, speed: config.speed, lane: config.lane, wheels };
+      return { mesh, progress: config.progress, startProgress: config.progress, speed: config.speed, lane: config.lane, wheels };
     });
   }
 
