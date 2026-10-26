@@ -1,0 +1,51 @@
+:root {
+  /* 60 / 30 / 10 Motorsport Palette */
+  --bg-root: #0B0D12;
+  --surface-base: #12151C;
+  --surface-raised: #1A1F2A;
+  --surface-glass: rgba(18, 21, 28, 0.85);
+  --surface-glass-heavy: rgba(11, 13, 18, 0.92);
+
+  --border-subtle: #262C3A;
+  --border-active: #3E475B;
+
+  --text-primary: #F4F6FA;
+  --text-muted: #8B94A7;
+  --text-dim: #545E75;
+
+  /* Accent Colors */
+  --accent-primary: #D4FF2A;       /* Volt lime (action, hero brand, P1) */
+  --accent-primary-hover: #b8e61a;
+  --accent-primary-alpha: rgba(212, 255, 42, 0.15);
+
+  --accent-rush: #4FD8FF;          /* Ice blue (RUSH burst) */
+  --accent-rush-glow: rgba(79, 216, 255, 0.35);
+
+  --accent-danger: #FF4D2E;        /* Signal red (brake, off-track) */
+  --accent-danger-alpha: rgba(255, 77, 46, 0.18);
+
+  --accent-success: #3DDC97;       /* Green (best lap, unlocked) */
+
+  /* Typography */
+  --font-display: "Chakra Petch", "Saira Condensed", "Barlow Condensed", "Impact", "Arial Narrow", sans-serif;
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Uniform Radius - No Random Clip Paths */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 9999px;
+
+  /* Touch budget */
+  --touch-target-min: 48px;
+
+  /* Transitions */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --anim-fast: 150ms var(--ease-out);
+  --anim-normal: 220ms var(--ease-out);
+
+  /* Elevation */
+  --shadow-subtle: 0 4px 20px rgba(0, 0, 0, 0.45);
+  --shadow-elevated: 0 12px 36px rgba(0, 0, 0, 0.65);
+}
