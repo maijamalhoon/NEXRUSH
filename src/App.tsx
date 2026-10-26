@@ -167,7 +167,7 @@ function App() {
         <div className={"track-art track-art-" + item.id}><div className="art-grid"/><div className="art-ring"/><div className="art-road"/><div className="art-sun"/></div>
         <div className="track-card-info"><div className="track-index">TRACK 00{index + 1} <span>{item.length}</span></div><h3>{item.name}</h3><p>{item.tagline}</p><div className="track-tags"><span>{item.environment}</span><span>3 LAPS</span></div></div><span className="select-mark">{trackId === item.id ? "✓" : "↗"}</span>
       </button>)}</div>
-      <div className="selection-footer"><div><small>SELECTED CIRCUIT</small><b>{track.name} <span>·</span> {track.environment}</b></div><button className="btn btn-primary" onClick={() => setScreen("garage")}>CHOOSE YOUR CAR <span>→</span></button></div>
+      <div className="selection-footer"><div className="selection-meta"><div><small>SELECTED CIRCUIT</small><b>{track.name} <span>·</span> {track.environment}</b></div><small className="personal-best">{best ? "PERSONAL BEST // " + time(best) : "FIRST RUN // SET YOUR LAP RECORD"}</small></div><label className="difficulty-picker"><small>AI DIFFICULTY</small><select value={difficulty} onChange={e => setDifficulty(e.target.value as Difficulty)}><option value="easy">EASY</option><option value="medium">MEDIUM</option><option value="hard">HARD</option></select></label><button className="btn btn-primary" onClick={() => setScreen("garage")}>CHOOSE YOUR CAR <span>→</span></button></div>
     </section>}
 
     {screen === "garage" && <section className="content-screen garage-screen">
