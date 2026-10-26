@@ -160,7 +160,6 @@ export class RacingScene {
     const steering = Number(right) - Number(left);
     const speedFactor = Math.min(1, Math.abs(this.speed) / 24);
     this.heading += steering * speedFactor * dt * (hand ? 1.85 : 1.22) * Math.sign(this.speed || 1);
-    const speedFactor = Math.min(1, Math.abs(this.speed) / 24);
     if (steering !== 0 && speedFactor > 0.1) {
       this.lateralVelocity += steering * speedFactor * (hand ? 15 : 4.2) * dt * Math.sign(this.speed || 1);
     }
