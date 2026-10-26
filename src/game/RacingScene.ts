@@ -7,7 +7,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { applyGrassDrag, countdownNumber, crossedStartFinish, driftAngleDegrees, getRacePhase, positiveAngle, TAU, updateBestLap, type RacePhase } from "./raceMath";
+import { applyGrassDrag, countdownNumber, crossedStartFinish, driftAngleDegrees, getRacePhase, isFinalLap, positiveAngle, TAU, TOTAL_LAPS, updateBestLap, type RacePhase } from "./raceMath";
 
 export type QualityMode = "auto" | "low" | "medium" | "high";
 export interface Telemetry {
@@ -55,6 +55,7 @@ export class RacingScene {
   private bestLapTime = 0;
   private countdownRemaining = 3.0;
   private raceStarted = false;
+  private raceFinished = false;
   private goFlashRemaining = 0;
   private hudAccumulator = 0;
   private lap = 1;
@@ -150,6 +151,7 @@ export class RacingScene {
     this.bestLapTime = 0;
     this.countdownRemaining = 3.0;
     this.raceStarted = false;
+    this.raceFinished = false;
     this.goFlashRemaining = 0;
     this.hudAccumulator = 0;
     this.keys.clear();
@@ -218,6 +220,14 @@ export class RacingScene {
 
   private update(dt: number) {
     this.hudAccumulator += dt;
+    if (this.raceFinished) {
+      if (this.hudAccumulator >= 0.08) {
+        this.hudAccumulator = 0;
+        this.publishTelemetry(false);
+      }
+      return;
+    }
+
     if (!this.raceStarted) {
       this.countdownRemaining = Math.max(0, this.countdownRemaining - dt);
       if (this.countdownRemaining <= 0) {
@@ -289,8 +299,13 @@ export class RacingScene {
     if (crossedStartFinish(previousProgress, this.lapProgress, this.speed)) {
       this.lastLapTime = this.lapTime;
       this.bestLapTime = updateBestLap(this.lastLapTime, this.bestLapTime);
-      this.lap++;
-      this.lapTime = 0;
+      if (isFinalLap(this.lap, TOTAL_LAPS)) {
+        this.raceFinished = true;
+        this.lapTime = 0;
+      } else {
+        this.lap++;
+        this.lapTime = 0;
+      }
     }
     this.lastProgress = this.lapProgress;
 
@@ -337,7 +352,7 @@ export class RacingScene {
   private publishTelemetry(accelerating: boolean) {
     const playerProgress = (this.lap - 1) * TAU + this.lapProgress;
     const position = 1 + this.opponents.filter(o => o.progress > playerProgress).length;
-    const racePhase = getRacePhase(this.raceStarted, this.goFlashRemaining);
+    const racePhase = getRacePhase(this.raceStarted, this.goFlashRemaining, this.raceFinished);
     this.onTelemetry({
       speed: Math.abs(this.speed),
       gear: Math.max(1, Math.min(6, Math.floor(Math.max(0, this.speed) / 38) + 1)),
