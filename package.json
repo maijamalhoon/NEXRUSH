@@ -8,18 +8,27 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint src",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\""
   },
   "dependencies": {
     "@babylonjs/core": "^8.30.0",
+    "lucide-react": "^1.61.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "vite-plugin-pwa": "^2.0.0",
+    "workbox-window": "^7.4.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^4.7.0",
+    "eslint": "^10.13.0",
+    "prettier": "^3.9.10",
     "typescript": "~5.8.3",
+    "typescript-eslint": "^8.72.0",
     "vite": "^6.4.0",
     "vitest": "^5.0.5"
   }

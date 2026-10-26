@@ -1,0 +1,105 @@
+import type { TrackData } from "../game/sim/types";
+
+/**
+ * 3 Curated tracks with distinct layouts and motorsport character.
+ */
+export const TRACKS: TrackData[] = [
+  {
+    id: "neon_metropolis",
+    name: "NEON METROPOLIS",
+    subtitle: "Night Grand Prix Circuit",
+    difficulty: "Medium",
+    lengthMeters: 2840,
+    defaultLaps: 3,
+    roadWidth: 15.0,
+    theme: "city_night",
+    ambientColor: "#080c14",
+    fogColor: "#05070c",
+    skyGradient: ["#0b0f19", "#151e32"],
+    points: [
+      // Pit straight & Turn 1
+      { x: 0, y: 0, z: -180 },
+      { x: 120, y: 0, z: -180 },
+      { x: 220, y: 0, z: -160 },
+      // Turn 2 hairpin
+      { x: 280, y: 0, z: -80 },
+      { x: 260, y: 0, z: 20 },
+      { x: 180, y: 0, z: 80 },
+      // S-Curves
+      { x: 100, y: 0, z: 120 },
+      { x: 130, y: 0, z: 190 },
+      { x: 90, y: 0, z: 260 },
+      // Back straight
+      { x: -20, y: 0, z: 280 },
+      { x: -160, y: 0, z: 260 },
+      // Technical chicane
+      { x: -240, y: 0, z: 180 },
+      { x: -210, y: 0, z: 120 },
+      { x: -260, y: 0, z: 40 },
+      // Final sweep to main straight
+      { x: -240, y: 0, z: -80 },
+      { x: -140, y: 0, z: -160 },
+    ],
+  },
+  {
+    id: "sunset_coast",
+    name: "SUNSET COAST",
+    subtitle: "High-Speed Seaside Sweeper",
+    difficulty: "Easy",
+    lengthMeters: 3120,
+    defaultLaps: 3,
+    roadWidth: 16.5,
+    theme: "coastal_sunset",
+    ambientColor: "#221318",
+    fogColor: "#1d1016",
+    skyGradient: ["#2d1724", "#773934"],
+    points: [
+      { x: 0, y: 0, z: -210 },
+      { x: 150, y: 0, z: -200 },
+      { x: 270, y: 0, z: -130 },
+      { x: 320, y: 0, z: 0 },
+      { x: 280, y: 0, z: 140 },
+      { x: 160, y: 0, z: 220 },
+      { x: 0, y: 0, z: 250 },
+      { x: -160, y: 0, z: 210 },
+      { x: -270, y: 0, z: 120 },
+      { x: -310, y: 0, z: -10 },
+      { x: -260, y: 0, z: -140 },
+      { x: -130, y: 0, z: -200 },
+    ],
+  },
+  {
+    id: "red_rock",
+    name: "RED ROCK",
+    subtitle: "Desert Canyon Speed Trial",
+    difficulty: "Hard",
+    lengthMeters: 2650,
+    defaultLaps: 3,
+    roadWidth: 13.5,
+    theme: "desert_industrial",
+    ambientColor: "#1a120e",
+    fogColor: "#150e0a",
+    skyGradient: ["#241510", "#4d2919"],
+    points: [
+      { x: 0, y: 0, z: -160 },
+      { x: 100, y: 0, z: -170 },
+      { x: 190, y: 0, z: -110 },
+      { x: 170, y: 0, z: -30 },
+      { x: 230, y: 0, z: 40 },
+      { x: 240, y: 0, z: 130 },
+      { x: 150, y: 0, z: 210 },
+      { x: 60, y: 0, z: 180 },
+      { x: -20, y: 0, z: 230 },
+      { x: -120, y: 0, z: 210 },
+      { x: -190, y: 0, z: 120 },
+      { x: -160, y: 0, z: 30 },
+      { x: -220, y: 0, z: -40 },
+      { x: -180, y: 0, z: -120 },
+      { x: -90, y: 0, z: -150 },
+    ],
+  },
+];
+
+export function getTrackById(id: string): TrackData {
+  return TRACKS.find((t) => t.id === id) || TRACKS[0];
+}
