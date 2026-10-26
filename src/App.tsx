@@ -1,10 +1,33 @@
 import {useCallback,useEffect,useRef,useState} from "react";
-import {RacingScene,type QualityMode,type Telemetry} from "./game/RacingScene";
+import type {RacingScene,QualityMode,Telemetry} from "./game/RacingScene";
 const empty:Telemetry={speed:0,rpm:900,gear:1,elapsed:0,lap:1,position:4,offTrack:false,driftAngle:0};
 export default function App(){
  const canvas=useRef<HTMLCanvasElement>(null);const game=useRef<RacingScene|null>(null);
  const [quality,setQuality]=useState<QualityMode>("auto");const [data,setData]=useState(empty);const [ready,setReady]=useState(false);const [help,setHelp]=useState(false);const [engineError,setEngineError]=useState(false);
- useEffect(()=>{if(!canvas.current)return;let instance:RacingScene;try{instance=new RacingScene(canvas.current,setData);game.current=instance;void instance.start().then(()=>setReady(true)).catch(error=>{console.error(error);setReady(false);setEngineError(true)})}catch(error){console.error("NEXRUSH could not initialize WebGL.",error);setEngineError(true);return}return()=>{game.current=null;instance.dispose()}},[]);
+ useEffect(()=>{
+  const targetCanvas=canvas.current;
+  if(!targetCanvas)return;
+  let instance:RacingScene|null=null;
+  let cancelled=false;
+  const fail=(error:unknown)=>{
+   console.error("NEXRUSH could not initialize WebGL.",error);
+   if(!cancelled){setReady(false);setEngineError(true);}
+  };
+  void import("./game/RacingScene").then(({RacingScene})=>{
+   if(cancelled)return;
+   try{
+    const created=new RacingScene(targetCanvas,setData);
+    instance=created;
+    game.current=created;
+    void created.start().then(()=>{if(!cancelled)setReady(true)}).catch(fail);
+   }catch(error){fail(error);}
+  }).catch(fail);
+  return ()=>{
+   cancelled=true;
+   if(instance)instance.dispose();
+   if(game.current===instance)game.current=null;
+  };
+ },[]);
  useEffect(()=>{game.current?.setQuality(quality)},[quality]);
  const control=useCallback((key:string,down:boolean)=>game.current?.setControl(key,down),[]);
  const time=(s:number)=>`${String(Math.floor(s/60)).padStart(2,"0")}:${String(Math.floor(s%60)).padStart(2,"0")}.${String(Math.floor(s%1*100)).padStart(2,"0")}`;
