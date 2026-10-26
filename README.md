@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. Create an optimized production bundle with `npm run build`; preview it locally with `npm run preview`.
+Open the local URL printed by Vite. Run the racing logic tests with `npm test`. Create an optimized production bundle with `npm run build`; preview it locally with `npm run preview`.
 
 ## Controls
 
@@ -21,17 +21,19 @@ Open the local URL printed by Vite. Create an optimized production bundle with `
 | Brake / reverse | S / Down Arrow | ▼ |
 | Steer | A / D or Left / Right | ◀ / ▶ |
 | Handbrake | Space | ✦ |
+| Reset car | R | ↻ reset button |
 | Help | Select the ? button | Select the ? button |
 
 ## Current prototype
 
 - Babylon.js 3D scene with a closed oval circuit, neon track edges, lane markers and a chase camera.
 - Three lightweight AI rivals following the circuit at different target speeds.
-- Arcade acceleration, braking, steering, handbrake drag, off-road speed penalty and simple opponent contact response.
+- Arcade acceleration, braking, handbrake and lateral-momentum drift model, grass slowdown, simple opponent contact response, and reset-to-grid control.
 - Live speed, RPM, gear, elapsed time, lap, position and off-road HUD indicators.
 - Auto, Performance, Balanced and High rendering quality settings. Auto mode adjusts render resolution in response to frame-rate samples.
 - Responsive desktop/mobile HUD and touch controls.
-- GitHub Actions workflow for TypeScript checking and production builds on pushes and pull requests to `main`.
+- Unit tests for deterministic lap-crossing, off-road drag and drift-angle math.
+- GitHub Actions workflow for unit tests, TypeScript checking and production builds on pushes and pull requests to `main`.
 
 ## Current limitations
 
