@@ -31,6 +31,7 @@ export class RacingScene {
   private car: Mesh;
   private wheels: Mesh[] = [];
   private opponents: Opponent[] = [];
+  private optionalScenery: Array<{ isVisible: boolean }> = [];
   private keys = new Set<string>();
   private controls = new Set<Control>();
   private mode: QualityMode = "auto";
@@ -79,6 +80,7 @@ export class RacingScene {
     this.car.position.set(0, 0.65, RZ);
     this.makeTrack();
     this.makeWorld();
+    this.makeCity();
     this.makeOpponents();
     this.applyQuality();
     window.addEventListener("keydown", this.down, { passive: false });
@@ -154,6 +156,8 @@ export class RacingScene {
   private applyQuality() {
     const scale = this.mode === "auto" ? this.autoScale : scales[this.mode];
     this.engine.setHardwareScalingLevel(1 / scale);
+    const showScenery = this.mode !== "low" && !(this.mode === "auto" && scale <= 0.62);
+    for (const item of this.optionalScenery) item.isVisible = showScenery;
   }
 
   private monitor() {
@@ -314,6 +318,22 @@ export class RacingScene {
     const spoiler = MeshBuilder.CreateBox(name + "-spoiler", { width: 1.75, height: 0.08, depth: 0.28 }, this.scene);
     spoiler.position.set(0, -0.15, -1.6);
     spoiler.parent = body;
+
+    const headlampMaterial = new StandardMaterial(name + "-headlamp-material", this.scene);
+    headlampMaterial.emissiveColor = new Color3(0.03, 0.65, 0.9);
+    const headlamp = MeshBuilder.CreateBox(name + "-headlamp", { width: 1.25, height: 0.09, depth: 0.07 }, this.scene);
+    headlamp.position.set(0, 0.03, 1.88);
+    headlamp.material = headlampMaterial;
+    headlamp.parent = body;
+
+    const taillampMaterial = new StandardMaterial(name + "-taillamp-material", this.scene);
+    taillampMaterial.emissiveColor = new Color3(0.95, 0.025, 0.12);
+    const taillamp = MeshBuilder.CreateBox(name + "-taillamp", { width: 1.15, height: 0.08, depth: 0.07 }, this.scene);
+    taillamp.position.set(0, 0.03, -1.88);
+    taillamp.material = taillampMaterial;
+    taillamp.parent = body;
+    headlamp.isPickable = false;
+    taillamp.isPickable = false;
     return body;
   }
 
@@ -400,6 +420,73 @@ export class RacingScene {
     const orbMat = new StandardMaterial("orb-mat", this.scene);
     orbMat.emissiveColor = new Color3(0.02, 0.45, 0.75);
     orb.material = orbMat;
+  }
+
+  private makeCity() {
+    const styles = [
+      { width: 3.4, depth: 3.8, height: 8, bodyColor: new Color3(0.035, 0.07, 0.12), neonColor: new Color3(0.02, 0.48, 0.68) },
+      { width: 4.1, depth: 3.4, height: 12, bodyColor: new Color3(0.055, 0.06, 0.12), neonColor: new Color3(0.22, 0.08, 0.62) },
+      { width: 3.2, depth: 4.2, height: 16, bodyColor: new Color3(0.04, 0.075, 0.11), neonColor: new Color3(0.68, 0.035, 0.19) },
+      { width: 4.6, depth: 3.8, height: 10, bodyColor: new Color3(0.065, 0.07, 0.1), neonColor: new Color3(0.04, 0.48, 0.38) }
+    ];
+    const templates: Array<{ body: Mesh; stripe: Mesh } | undefined> = new Array(styles.length);
+    const towerCount = 40;
+
+    for (let i = 0; i < towerCount; i++) {
+      const t = i / towerCount * TAU + 0.035;
+      const x = (RX + 20) * Math.cos(t);
+      const z = (RZ + 18) * Math.sin(t);
+      const styleIndex = i % styles.length;
+      const style = styles[styleIndex];
+      let body: Mesh | ReturnType<Mesh["createInstance"]>;
+      let stripe: Mesh | ReturnType<Mesh["createInstance"]>;
+
+      if (!templates[styleIndex]) {
+        const bodyMesh = MeshBuilder.CreateBox("city-tower-" + styleIndex, {
+          width: style.width, height: style.height, depth: style.depth
+        }, this.scene);
+        const bodyMaterial = new StandardMaterial("city-tower-material-" + styleIndex, this.scene);
+        bodyMaterial.diffuseColor = style.bodyColor;
+        bodyMaterial.specularColor = new Color3(0.12, 0.16, 0.22);
+        bodyMesh.material = bodyMaterial;
+
+        const stripeMesh = MeshBuilder.CreateBox("city-stripe-" + styleIndex, {
+          width: 0.12, height: style.height * 0.72, depth: 0.07
+        }, this.scene);
+        const stripeMaterial = new StandardMaterial("city-stripe-material-" + styleIndex, this.scene);
+        stripeMaterial.emissiveColor = style.neonColor;
+        stripeMesh.material = stripeMaterial;
+
+        templates[styleIndex] = { body: bodyMesh, stripe: stripeMesh };
+        body = bodyMesh;
+        stripe = stripeMesh;
+      } else {
+        body = templates[styleIndex]!.body.createInstance("city-tower-" + i);
+        stripe = templates[styleIndex]!.stripe.createInstance("city-stripe-" + i);
+      }
+
+      body.position.set(x, style.height / 2, z);
+      body.isPickable = false;
+      stripe.position.set(x - style.width * 0.22, style.height / 2, z + style.depth / 2 + 0.04);
+      stripe.isPickable = false;
+      this.optionalScenery.push(body, stripe);
+    }
+
+    const cyan = new StandardMaterial("start-gate-cyan", this.scene);
+    cyan.emissiveColor = new Color3(0.02, 0.68, 0.9);
+    const pink = new StandardMaterial("start-gate-pink", this.scene);
+    pink.emissiveColor = new Color3(0.92, 0.025, 0.19);
+
+    for (const side of [-1, 1]) {
+      const post = MeshBuilder.CreateBox("start-gate-post", { width: 0.42, height: 6.2, depth: 0.42 }, this.scene);
+      post.position.set(side * 9.1, 3.1, RZ);
+      post.material = side < 0 ? cyan : pink;
+      post.isPickable = false;
+    }
+    const crossbar = MeshBuilder.CreateBox("start-gate-crossbar", { width: 18.2, height: 0.24, depth: 0.35 }, this.scene);
+    crossbar.position.set(0, 6.15, RZ);
+    crossbar.material = cyan;
+    crossbar.isPickable = false;
   }
 
   private makeOpponents() {
