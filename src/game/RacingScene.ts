@@ -20,6 +20,9 @@ export interface Telemetry {
   position: number;
   offTrack: boolean;
   driftAngle: number;
+  drifting: boolean;
+  driftScore: number;
+  boosting: boolean;
   lapTime: number;
   lastLapTime: number;
   bestLapTime: number;
@@ -44,6 +47,7 @@ export class RacingScene {
   private roadHalfWidth = 7.5;
   private car: Mesh;
   private wheels: Mesh[] = [];
+  private boostFlames: Mesh[] = [];
   private opponents: Opponent[] = [];
   private optionalScenery: Array<{ isVisible: boolean }> = [];
   private autoSceneryVisible = true;
@@ -63,6 +67,9 @@ export class RacingScene {
   private raceFinished = false;
   private nitro = 100;
   private takedowns = 0;
+  private driftScore = 0;
+  private drifting = false;
+  private impactShake = 0;
   private hudAccumulator = 0;
   private lap = 1;
   private lapProgress = 0;
@@ -161,6 +168,10 @@ export class RacingScene {
     this.raceFinished = false;
     this.nitro = 100;
     this.takedowns = 0;
+    this.driftScore = 0;
+    this.drifting = false;
+    this.impactShake = 0;
+    this.boostFlames.forEach(flame => { flame.isVisible = false; });
     this.countdownRemaining = 3.0;
     this.raceStarted = false;
     this.goFlashRemaining = 0;
@@ -268,7 +279,12 @@ export class RacingScene {
       else this.speed -= 20 * dt;
     }
     if (hand) this.speed *= Math.exp(-0.55 * dt);
-    if (boost && this.nitro > 0) {
+    const boostActive = boost && this.nitro > 0;
+    this.boostFlames.forEach((flame, index) => {
+      flame.isVisible = boostActive && Math.abs(this.speed) > 12;
+      flame.scaling.y = 0.72 + Math.sin(this.elapsed * 42 + index * 1.7) * 0.16 + Math.min(0.45, Math.abs(this.speed) / 240);
+    });
+    if (boostActive) {
       this.speed += 62 * dt;
       this.nitro = Math.max(0, this.nitro - Math.max(18, 34 - nitroLevel * 3) * dt);
     } else {
@@ -287,6 +303,9 @@ export class RacingScene {
       -18,
       18
     );
+    const driftAngle = driftAngleDegrees(this.lateralVelocity, this.speed);
+    this.drifting = hand && Math.abs(this.speed) > 30 && driftAngle > 7;
+    if (this.drifting) this.driftScore += Math.round(Math.abs(this.speed) * dt * Math.min(2.2, driftAngle / 18));
     const sinHeading = Math.sin(this.heading);
     const cosHeading = Math.cos(this.heading);
     const forwardStep = this.speed * dt / 3.6;
@@ -294,6 +313,8 @@ export class RacingScene {
     this.car.position.x += sinHeading * forwardStep + cosHeading * lateralStep;
     this.car.position.z += cosHeading * forwardStep - sinHeading * lateralStep;
     this.car.rotation.y = this.heading;
+    this.car.rotation.z = clamp(-steering * speedFactor * (hand ? 0.12 : 0.045), -0.14, 0.14);
+    this.wheels.forEach((wheel, index) => { wheel.rotation.y = index % 2 === 1 ? steering * 0.22 : 0; });
 
     const trackAngle = Math.atan2(this.car.position.z / this.rz, this.car.position.x / this.rx);
     const nearest = this.trackPoint(trackAngle);
@@ -339,6 +360,7 @@ export class RacingScene {
         if (Math.abs(this.speed) >= 108 && this.speed > 0) {
           opponent.destroyed = true;
           opponent.mesh.setEnabled(false);
+          this.impactShake = Math.max(this.impactShake, 0.8);
           this.takedowns++;
           this.nitro = Math.min(100, this.nitro + 18);
           this.onRaceEvent({ type: "TAKEDOWN", reward: 35, opponent: opponent.mesh.name });
@@ -346,6 +368,7 @@ export class RacingScene {
           const armorLevel = this.setup.upgrades.armor || 0;
           const impactResistance = clamp(this.setup.car.durability / 1000 + armorLevel * 0.025, 0, 0.22);
           this.speed *= 0.68 + impactResistance;
+          this.impactShake = Math.max(this.impactShake, 0.45);
           this.heading += (this.car.position.x - opponent.mesh.position.x >= 0 ? 1 : -1) * 0.2;
         }
         this.collisionCooldown = Math.max(0.35, 0.65 - (this.setup.upgrades.armor || 0) * 0.05);
@@ -354,12 +377,16 @@ export class RacingScene {
 
     for (const wheel of this.wheels) wheel.rotation.x += this.speed * dt / 1.2;
     const cameraFollow = Math.min(1, dt * 5);
-    this.camera.target.x += (this.car.position.x - this.camera.target.x) * cameraFollow;
-    this.camera.target.y += (this.car.position.y + 0.65 - this.camera.target.y) * cameraFollow;
+    this.impactShake = Math.max(0, this.impactShake - dt * 2.6);
+    const shakeX = Math.sin(this.elapsed * 70) * this.impactShake * 0.22;
+    const shakeY = Math.cos(this.elapsed * 83) * this.impactShake * 0.1;
+    this.camera.target.x += (this.car.position.x + shakeX - this.camera.target.x) * cameraFollow;
+    this.camera.target.y += (this.car.position.y + 0.65 + shakeY - this.camera.target.y) * cameraFollow;
     this.camera.target.z += (this.car.position.z - this.camera.target.z) * cameraFollow;
     this.camera.alpha = -Math.PI / 2 - this.heading;
     this.camera.beta = 1.08 + Math.min(0.12, Math.abs(this.speed) / 1200);
-    this.camera.radius = 12 + Math.min(3, Math.abs(this.speed) / 70);
+    this.camera.radius = 12 + Math.min(3, Math.abs(this.speed) / 70) - (boostActive ? 0.8 : 0);
+    this.camera.fov = 0.8 + Math.min(0.13, Math.abs(this.speed) / 2100) + (boostActive ? 0.045 : 0);
 
     if (this.hudAccumulator >= 0.08) {
       this.hudAccumulator = 0;
@@ -380,6 +407,9 @@ export class RacingScene {
       position,
       offTrack: this.offTrack,
       driftAngle: driftAngleDegrees(this.lateralVelocity, this.speed),
+      drifting: this.drifting,
+      driftScore: this.driftScore,
+      boosting: this.raceStarted && !this.raceFinished && (this.keys.has(" ") || this.controls.has("nitro")) && this.nitro > 0,
       lapTime: this.lapTime,
       lastLapTime: this.lastLapTime,
       bestLapTime: this.bestLapTime,
@@ -439,6 +469,22 @@ export class RacingScene {
     taillamp.parent = body;
     headlamp.isPickable = false;
     taillamp.isPickable = false;
+    if (player) {
+      const boostMaterial = new StandardMaterial(name + "-boost-flame-material", this.scene);
+      boostMaterial.diffuseColor = new Color3(0.02, 0.72, 1);
+      boostMaterial.emissiveColor = new Color3(0.05, 0.55, 1);
+      boostMaterial.disableLighting = true;
+      for (const x of [-0.48, 0.48]) {
+        const flame = MeshBuilder.CreateCylinder(name + "-boost-flame", { height: 0.92, diameterTop: 0.035, diameterBottom: 0.3, tessellation: 6 }, this.scene);
+        flame.rotation.x = Math.PI / 2;
+        flame.position.set(x, -0.02, -2.12);
+        flame.material = boostMaterial;
+        flame.parent = body;
+        flame.isVisible = false;
+        flame.isPickable = false;
+        this.boostFlames.push(flame);
+      }
+    }
     return body;
   }
 
