@@ -16,7 +16,7 @@ export class RacingScene{
   this.car=this.makeCar();this.makeTrack();this.makeWorld();this.applyQuality();
   window.addEventListener("keydown",this.down,{passive:false});window.addEventListener("keyup",this.up);window.addEventListener("blur",this.clear);document.addEventListener("visibilitychange",this.clear);
  }
- async start(){await this.engine.initAsync().catch(()=>undefined);if(this.disposed)return;this.engine.runRenderLoop(()=>{if(this.disposed)return;const dt=Math.min(this.engine.getDeltaTime()/1000,.05);if(!document.hidden)this.update(dt);this.scene.render();this.monitor()});window.addEventListener("resize",this.resize)}
+ async start(){if(this.disposed)return;this.engine.runRenderLoop(()=>{if(this.disposed)return;const dt=Math.min(this.engine.getDeltaTime()/1000,.05);if(!document.hidden)this.update(dt);this.scene.render();this.monitor()});window.addEventListener("resize",this.resize)}
  private resize=()=>{if(!this.disposed){this.engine.resize();this.applyQuality()}};
  setControl(key:string,pressed:boolean){if(!["left","right","accelerate","brake"].includes(key))return;if(pressed)this.controls.add(key as Control);else this.controls.delete(key as Control)}
  setQuality(q:QualityMode){this.mode=q;this.applyQuality()}
