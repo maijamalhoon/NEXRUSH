@@ -53,7 +53,7 @@ export class RacingScene {
   private lapTime = 0;
   private lastLapTime = 0;
   private bestLapTime = 0;
-  private countdownRemaining = 3.4;
+  private countdownRemaining = 3.0;
   private raceStarted = false;
   private goFlashRemaining = 0;
   private hudAccumulator = 0;
@@ -148,7 +148,7 @@ export class RacingScene {
     this.lapTime = 0;
     this.lastLapTime = 0;
     this.bestLapTime = 0;
-    this.countdownRemaining = 3.4;
+    this.countdownRemaining = 3.0;
     this.raceStarted = false;
     this.goFlashRemaining = 0;
     this.hudAccumulator = 0;
