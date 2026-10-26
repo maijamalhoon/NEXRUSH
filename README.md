@@ -1,6 +1,6 @@
 # NEXRUSH
 
-**A performance-first 3D browser arcade racer.** NEXRUSH is a browser game prototype built with React, TypeScript, Vite and Babylon.js. The current milestone adds a complete front-end loop around the 3D race: track selection, a five-car garage, unlockable paint, performance upgrades, difficulty modes, nitro, drift controls, takedown credits and a three-lap finish.
+**A performance-first 3D browser arcade racer.** NEXRUSH is a browser game prototype built with React, TypeScript, Vite and Babylon.js. The current milestone includes an interactive 3D vehicle showroom, more detailed procedural vehicle geometry, raised racing curbs, track lighting, atmospheric depth and track-specific desert/harbor scenery, alongside the garage, upgrades, AI races and three-lap finish.
 
 ## Live preview
 
@@ -48,7 +48,8 @@ npm run build
 
 - Babylon.js is dynamically imported so the engine is not included in the first UI chunk.
 - Adaptive rendering scales the render resolution based on observed frame rate; Performance, Balanced and High modes are also available.
-- The game uses low-poly procedural vehicle meshes and instanced scenery instead of loading a heavyweight asset pack at startup. Nitro adds exhaust flames, speed-line feedback and a speed-responsive chase camera; drifts bank a visible combo score, while impacts add a short camera response.
+- Race cars now use layered body panels, glazing, headlamps, taillights, splitters, wings, twin exhausts and detailed wheel/rim assemblies. The garage and tuning screen have an interactive 3D showroom with studio lighting and drag-to-inspect camera controls.
+- Tracks use raised curb segments, fog/depth treatment, overhead light rigs, and distinct desert rock or harbor cargo scenery. The game still uses procedural low-poly geometry rather than photorealistic licensed GLB car models. Nitro adds exhaust flames, speed-line feedback and a speed-responsive chase camera; drifts bank a visible combo score, while impacts add a short camera response.
 - Track presets use different procedural road curves, dimensions, road materials, color palettes and scenery profiles for Neon City, Dune Canyon and Harbor Run. They share the same three-lap closed-loop race model; hand-authored routes, detailed environment assets and imported vehicle meshes remain a planned graphics milestone.
 - The browser save is local to one device/profile. There is no cross-device account sync, cloud economy or online multiplayer yet.
 - No physical mobile-device compatibility or frame-rate guarantee is claimed until real-device testing is completed.
