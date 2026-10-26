@@ -7,7 +7,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { applyGrassDrag, crossedStartFinish, driftAngleDegrees, positiveAngle, TAU } from "./raceMath";
+import { applyGrassDrag, countdownNumber, crossedStartFinish, driftAngleDegrees, getRacePhase, positiveAngle, TAU, updateBestLap, type RacePhase } from "./raceMath";
 
 export type QualityMode = "auto" | "low" | "medium" | "high";
 export interface Telemetry {
@@ -23,7 +23,7 @@ export interface Telemetry {
   lastLapTime: number;
   bestLapTime: number;
   countdown: number;
-  racePhase: "COUNTDOWN" | "GO" | "RACING";
+  racePhase: RacePhase;
 }
 type Control = "left" | "right" | "accelerate" | "brake" | "handbrake";
 type Opponent = { mesh: Mesh; progress: number; startProgress: number; speed: number; lane: number; wheels: Mesh[] };
@@ -288,7 +288,7 @@ export class RacingScene {
     this.lapProgress = positiveAngle(trackAngle - Math.PI / 2);
     if (crossedStartFinish(previousProgress, this.lapProgress, this.speed)) {
       this.lastLapTime = this.lapTime;
-      if (this.bestLapTime === 0 || this.lastLapTime < this.bestLapTime) this.bestLapTime = this.lastLapTime;
+      this.bestLapTime = updateBestLap(this.lastLapTime, this.bestLapTime);
       this.lap++;
       this.lapTime = 0;
     }
@@ -337,9 +337,7 @@ export class RacingScene {
   private publishTelemetry(accelerating: boolean) {
     const playerProgress = (this.lap - 1) * TAU + this.lapProgress;
     const position = 1 + this.opponents.filter(o => o.progress > playerProgress).length;
-    const racePhase = !this.raceStarted
-      ? "COUNTDOWN"
-      : this.goFlashRemaining > 0 ? "GO" : "RACING";
+    const racePhase = getRacePhase(this.raceStarted, this.goFlashRemaining);
     this.onTelemetry({
       speed: Math.abs(this.speed),
       gear: Math.max(1, Math.min(6, Math.floor(Math.max(0, this.speed) / 38) + 1)),
@@ -352,7 +350,7 @@ export class RacingScene {
       lapTime: this.lapTime,
       lastLapTime: this.lastLapTime,
       bestLapTime: this.bestLapTime,
-      countdown: Math.max(1, Math.ceil(this.countdownRemaining)),
+      countdown: countdownNumber(this.countdownRemaining),
       racePhase
     });
   }
