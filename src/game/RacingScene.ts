@@ -624,7 +624,36 @@ export class RacingScene {
     const roadMat = new StandardMaterial("road-mat", this.scene);
     roadMat.diffuseColor = Color3.FromHexString(this.setup.track.road);
     roadMat.specularColor = new Color3(0.16, 0.18, 0.22);
+    roadMat.specularPower = 48;
     road.material = roadMat;
+
+    // Raised racing curbs and shoulders give the circuit a proper track profile.
+    const curbRed = new StandardMaterial("curb-red", this.scene);
+    curbRed.diffuseColor = this.setup.track.id === "dune-canyon" ? new Color3(0.92, 0.39, 0.16) : new Color3(0.85, 0.08, 0.14);
+    const curbWhite = new StandardMaterial("curb-white", this.scene);
+    curbWhite.diffuseColor = new Color3(0.78, 0.84, 0.87);
+    curbWhite.specularColor = new Color3(0.2, 0.23, 0.25);
+    const curbA = MeshBuilder.CreateBox("curb-a-template", { width: 0.62, height: 0.075, depth: 1.05 }, this.scene);
+    curbA.material = curbRed;
+    curbA.isPickable = false;
+    const curbB = MeshBuilder.CreateBox("curb-b-template", { width: 0.62, height: 0.075, depth: 1.05 }, this.scene);
+    curbB.material = curbWhite;
+    curbB.isPickable = false;
+    const curbSegments = 88;
+    for (let i = 0; i < curbSegments; i++) {
+      const t = i / curbSegments * TAU;
+      const point = this.trackPoint(t);
+      const normal = this.trackNormal(t);
+      const heading = this.trackHeading(t);
+      for (const side of [-1, 1]) {
+        const template = i % 2 === 0 ? curbA : curbB;
+        const curb = template.createInstance("curb-" + side + "-" + i);
+        curb.position.set(point.x + normal.x * side * (this.roadHalfWidth - 0.12), 0.085, point.z + normal.z * side * (this.roadHalfWidth - 0.12));
+        curb.rotation.y = heading;
+        curb.isPickable = false;
+        this.optionalScenery.push(curb);
+      }
+    }
 
     const outerLine = MeshBuilder.CreateLines("outer-neon-edge", { points: [...outer, outer[0]] }, this.scene);
     outerLine.color = Color3.FromHexString(this.setup.track.primary);
