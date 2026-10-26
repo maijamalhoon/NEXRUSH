@@ -7,7 +7,8 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { applyGrassDrag, countdownNumber, crossedStartFinish, driftAngleDegrees, getRacePhase, positiveAngle, TAU, updateBestLap, type RacePhase } from "./raceMath";
+import { applyGrassDrag, countdownNumber, crossedStartFinish, driftAngleDegrees, getRacePhase, isFinalLap, positiveAngle, TAU, TOTAL_LAPS, updateBestLap, type RacePhase } from "./raceMath";
+import type { RaceSetup } from "./catalog";
 
 export type QualityMode = "auto" | "low" | "medium" | "high";
 export interface Telemetry {
@@ -24,20 +25,23 @@ export interface Telemetry {
   bestLapTime: number;
   countdown: number;
   racePhase: RacePhase;
+  nitro: number;
+  takedowns: number;
 }
-type Control = "left" | "right" | "accelerate" | "brake" | "handbrake";
-type Opponent = { mesh: Mesh; progress: number; startProgress: number; speed: number; lane: number; wheels: Mesh[] };
+type Control = "left" | "right" | "accelerate" | "brake" | "handbrake" | "nitro";
+type Opponent = { mesh: Mesh; progress: number; startProgress: number; speed: number; lane: number; wheels: Mesh[]; destroyed: boolean };
+export type RaceEvent = { type: "TAKEDOWN"; reward: number; opponent: string } | { type: "FINISH"; reward: number; position: number; elapsed: number };
 
 const scales = { low: 0.62, medium: 0.8, high: 1 };
-const RX = 34;
-const RZ = 22;
-const ROAD_HALF_WIDTH = 7.5;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 export class RacingScene {
   private engine: Engine;
   private scene: Scene;
   private camera: ArcRotateCamera;
+  private rx = 34;
+  private rz = 22;
+  private roadHalfWidth = 7.5;
   private car: Mesh;
   private wheels: Mesh[] = [];
   private opponents: Opponent[] = [];
@@ -56,6 +60,9 @@ export class RacingScene {
   private countdownRemaining = 3.0;
   private raceStarted = false;
   private goFlashRemaining = 0;
+  private raceFinished = false;
+  private nitro = 100;
+  private takedowns = 0;
   private hudAccumulator = 0;
   private lap = 1;
   private lapProgress = 0;
@@ -79,7 +86,10 @@ export class RacingScene {
   private up = (e: KeyboardEvent) => this.keys.delete(e.key.toLowerCase());
   private clear = () => { this.keys.clear(); this.controls.clear(); };
 
-  constructor(canvas: HTMLCanvasElement, private onTelemetry: (t: Telemetry) => void) {
+  constructor(canvas: HTMLCanvasElement, private onTelemetry: (t: Telemetry) => void, private setup: RaceSetup, private onRaceEvent: (event: RaceEvent) => void) {
+    this.rx = setup.track.rx;
+    this.rz = setup.track.rz;
+    this.roadHalfWidth = setup.track.roadHalfWidth;
     this.engine = new Engine(canvas, false, {
       preserveDrawingBuffer: false,
       stencil: false,
@@ -87,14 +97,14 @@ export class RacingScene {
     }, false);
     this.engine.setHardwareScalingLevel(1 / this.autoScale);
     this.scene = new Scene(this.engine);
-    this.scene.clearColor = new Color4(0.025, 0.035, 0.065, 1);
+    this.scene.clearColor = Color4.FromHexString(setup.track.sky + "ff");
     this.scene.skipPointerMovePicking = true;
-    this.camera = new ArcRotateCamera("chase", 0, 1.08, 13, new Vector3(0, 0.7, RZ), this.scene);
+    this.camera = new ArcRotateCamera("chase", 0, 1.08, 13, new Vector3(0, 0.7, this.rz), this.scene);
     this.camera.lowerRadiusLimit = 9;
     this.camera.upperRadiusLimit = 17;
     this.camera.inputs.clear();
-    this.car = this.makeCar("player-car", new Color3(0.76, 0.035, 0.12), true);
-    this.car.position.set(0, 0.65, RZ);
+    this.car = this.makeCar("player-car", Color3.FromHexString(setup.paint), true);
+    this.car.position.set(0, 0.65, this.rz);
     this.makeTrack();
     this.makeWorld();
     this.makeCity();
@@ -130,7 +140,7 @@ export class RacingScene {
   };
 
   setControl(key: string, pressed: boolean) {
-    if (!(["left", "right", "accelerate", "brake", "handbrake"] as string[]).includes(key)) return;
+    if (!(["left", "right", "accelerate", "brake", "handbrake", "nitro"] as string[]).includes(key)) return;
     if (pressed) this.controls.add(key as Control);
     else this.controls.delete(key as Control);
   }
@@ -148,6 +158,9 @@ export class RacingScene {
     this.lapTime = 0;
     this.lastLapTime = 0;
     this.bestLapTime = 0;
+    this.raceFinished = false;
+    this.nitro = 100;
+    this.takedowns = 0;
     this.countdownRemaining = 3.0;
     this.raceStarted = false;
     this.goFlashRemaining = 0;
@@ -159,23 +172,25 @@ export class RacingScene {
     this.lastProgress = 0;
     this.offTrack = false;
     this.collisionCooldown = 0;
-    this.car.position.set(0, 0.65, RZ);
+    this.car.position.set(0, 0.65, this.rz);
     this.car.rotation.y = this.heading;
     this.camera.alpha = 0;
     this.camera.radius = 12;
-    this.camera.target.set(0, 1.3, RZ);
+    this.camera.target.set(0, 1.3, this.rz);
     for (const opponent of this.opponents) {
+      opponent.destroyed = false;
+      opponent.mesh.setEnabled(true);
       opponent.progress = opponent.startProgress;
       const t = Math.PI / 2 + opponent.progress;
-      const nxRaw = Math.cos(t) / RX;
-      const nzRaw = Math.sin(t) / RZ;
+      const nxRaw = Math.cos(t) / this.rx;
+      const nzRaw = Math.sin(t) / this.rz;
       const nLength = Math.hypot(nxRaw, nzRaw);
       opponent.mesh.position.set(
-        RX * Math.cos(t) + nxRaw / nLength * opponent.lane,
+        this.rx * Math.cos(t) + nxRaw / nLength * opponent.lane,
         0.65,
-        RZ * Math.sin(t) + nzRaw / nLength * opponent.lane
+        this.rz * Math.sin(t) + nzRaw / nLength * opponent.lane
       );
-      opponent.mesh.rotation.y = Math.atan2(-RX * Math.sin(t), RZ * Math.cos(t));
+      opponent.mesh.rotation.y = Math.atan2(-this.rx * Math.sin(t), this.rz * Math.cos(t));
     }
     this.publishTelemetry(false);
   }
@@ -218,6 +233,10 @@ export class RacingScene {
 
   private update(dt: number) {
     this.hudAccumulator += dt;
+    if (this.raceFinished) {
+      if (this.hudAccumulator >= 0.08) { this.hudAccumulator = 0; this.publishTelemetry(false); }
+      return;
+    }
     if (!this.raceStarted) {
       this.countdownRemaining = Math.max(0, this.countdownRemaining - dt);
       if (this.countdownRemaining <= 0) {
@@ -241,23 +260,33 @@ export class RacingScene {
     const brake = this.keys.has("s") || this.keys.has("arrowdown") || this.controls.has("brake");
     const left = this.keys.has("a") || this.keys.has("arrowleft") || this.controls.has("left");
     const right = this.keys.has("d") || this.keys.has("arrowright") || this.controls.has("right");
-    const hand = this.keys.has(" ") || this.controls.has("handbrake");
+    const hand = this.keys.has("shift") || this.controls.has("handbrake");
+    const boost = this.keys.has(" ") || this.controls.has("nitro");
 
-    if (accel) this.speed += (this.speed < 0 ? 48 : 30) * dt;
+    const engineLevel = this.setup.upgrades.engine || 0;
+    const handlingLevel = this.setup.upgrades.handling || 0;
+    const nitroLevel = this.setup.upgrades.nitro || 0;
+    if (accel) this.speed += (this.speed < 0 ? 48 : this.setup.car.acceleration + engineLevel * 2) * dt;
     else if (this.speed > 0) this.speed = Math.max(0, this.speed - 5.5 * dt);
     else if (this.speed < 0) this.speed = Math.min(0, this.speed + 5.5 * dt);
     if (brake) {
       if (this.speed > 5) this.speed -= 52 * dt;
       else this.speed -= 20 * dt;
     }
-    if (hand) this.speed *= Math.exp(-2.4 * dt);
-    this.speed = clamp(this.speed, -28, 220);
+    if (hand) this.speed *= Math.exp(-0.55 * dt);
+    if (boost && this.nitro > 0) {
+      this.speed += 62 * dt;
+      this.nitro = Math.max(0, this.nitro - Math.max(18, 34 - nitroLevel * 3) * dt);
+    } else {
+      this.nitro = Math.min(100, this.nitro + (10 + nitroLevel * 2.5) * dt);
+    }
+    this.speed = clamp(this.speed, -28, this.setup.car.topSpeed + engineLevel * 6);
 
     const steering = Number(right) - Number(left);
     const speedFactor = Math.min(1, Math.abs(this.speed) / 24);
-    this.heading += steering * speedFactor * dt * (hand ? 1.85 : 1.22) * Math.sign(this.speed || 1);
+    this.heading += steering * speedFactor * dt * (hand ? 1.85 : 1.22) * (this.setup.car.handling + handlingLevel * 0.06) * Math.sign(this.speed || 1);
     if (steering !== 0 && speedFactor > 0.1) {
-      this.lateralVelocity += steering * speedFactor * (hand ? 15 : 4.2) * dt * Math.sign(this.speed || 1);
+      this.lateralVelocity += steering * speedFactor * (hand ? 15 : 4.2) * (this.setup.car.handling + handlingLevel * 0.06) * dt * Math.sign(this.speed || 1);
     }
     this.lateralVelocity = clamp(
       this.lateralVelocity * Math.exp(-dt * (hand ? 0.62 : 1.65)),
@@ -272,11 +301,11 @@ export class RacingScene {
     this.car.position.z += cosHeading * forwardStep - sinHeading * lateralStep;
     this.car.rotation.y = this.heading;
 
-    const trackAngle = Math.atan2(this.car.position.z / RZ, this.car.position.x / RX);
-    const nearestX = RX * Math.cos(trackAngle);
-    const nearestZ = RZ * Math.sin(trackAngle);
+    const trackAngle = Math.atan2(this.car.position.z / this.rz, this.car.position.x / this.rx);
+    const nearestX = this.rx * Math.cos(trackAngle);
+    const nearestZ = this.rz * Math.sin(trackAngle);
     const distanceFromCentre = Math.hypot(this.car.position.x - nearestX, this.car.position.z - nearestZ);
-    this.offTrack = distanceFromCentre > ROAD_HALF_WIDTH - 1.0;
+    this.offTrack = distanceFromCentre > this.roadHalfWidth - 1.0;
     if (this.offTrack) {
       // Grass should slow the car down, never accelerate a stopped car backwards.
       this.speed = applyGrassDrag(this.speed, dt);
@@ -289,32 +318,51 @@ export class RacingScene {
     if (crossedStartFinish(previousProgress, this.lapProgress, this.speed)) {
       this.lastLapTime = this.lapTime;
       this.bestLapTime = updateBestLap(this.lastLapTime, this.bestLapTime);
-      this.lap++;
-      this.lapTime = 0;
+      if (isFinalLap(this.lap, TOTAL_LAPS)) {
+        this.raceFinished = true;
+        this.lap = TOTAL_LAPS;
+        this.lapTime = 0;
+        const finishedProgress = TOTAL_LAPS * TAU;
+        const finalPosition = 1 + this.opponents.filter(o => !o.destroyed && o.progress > finishedProgress).length;
+        const difficultyBonus = this.setup.difficulty === "hard" ? 80 : this.setup.difficulty === "medium" ? 45 : 20;
+        this.onRaceEvent({ type: "FINISH", reward: Math.max(20, (4 - finalPosition) * 55 + difficultyBonus), position: finalPosition, elapsed: this.elapsed });
+      } else {
+        this.lap++;
+        this.lapTime = 0;
+      }
     }
     this.lastProgress = this.lapProgress;
 
     for (const opponent of this.opponents) {
+      if (opponent.destroyed) continue;
       opponent.progress += (opponent.speed / 3.6 / 29) * dt;
       const t = Math.PI / 2 + opponent.progress;
-      const nxRaw = Math.cos(t) / RX;
-      const nzRaw = Math.sin(t) / RZ;
+      const nxRaw = Math.cos(t) / this.rx;
+      const nzRaw = Math.sin(t) / this.rz;
       const nLength = Math.hypot(nxRaw, nzRaw);
       const nx = nxRaw / nLength;
       const nz = nzRaw / nLength;
       opponent.mesh.position.set(
-        RX * Math.cos(t) + nx * opponent.lane,
+        this.rx * Math.cos(t) + nx * opponent.lane,
         0.65,
-        RZ * Math.sin(t) + nz * opponent.lane
+        this.rz * Math.sin(t) + nz * opponent.lane
       );
-      const dx = -RX * Math.sin(t);
-      const dz = RZ * Math.cos(t);
+      const dx = -this.rx * Math.sin(t);
+      const dz = this.rz * Math.cos(t);
       opponent.mesh.rotation.y = Math.atan2(dx, dz);
       for (const wheel of opponent.wheels) wheel.rotation.x += opponent.speed * dt / 3.6;
       const dist = Math.hypot(this.car.position.x - opponent.mesh.position.x, this.car.position.z - opponent.mesh.position.z);
       if (dist < 2.7 && this.collisionCooldown === 0) {
-        this.speed *= 0.68;
-        this.heading += (this.car.position.x - opponent.mesh.position.x >= 0 ? 1 : -1) * 0.2;
+        if (Math.abs(this.speed) >= 108 && this.speed > 0) {
+          opponent.destroyed = true;
+          opponent.mesh.setEnabled(false);
+          this.takedowns++;
+          this.nitro = Math.min(100, this.nitro + 18);
+          this.onRaceEvent({ type: "TAKEDOWN", reward: 35, opponent: opponent.mesh.name });
+        } else {
+          this.speed *= 0.68;
+          this.heading += (this.car.position.x - opponent.mesh.position.x >= 0 ? 1 : -1) * 0.2;
+        }
         this.collisionCooldown = 0.65;
       }
     }
@@ -335,9 +383,9 @@ export class RacingScene {
   }
 
   private publishTelemetry(accelerating: boolean) {
-    const playerProgress = (this.lap - 1) * TAU + this.lapProgress;
-    const position = 1 + this.opponents.filter(o => o.progress > playerProgress).length;
-    const racePhase = getRacePhase(this.raceStarted, this.goFlashRemaining);
+    const playerProgress = this.raceFinished ? TOTAL_LAPS * TAU : (this.lap - 1) * TAU + this.lapProgress;
+    const position = 1 + this.opponents.filter(o => !o.destroyed && o.progress > playerProgress).length;
+    const racePhase = getRacePhase(this.raceStarted, this.goFlashRemaining, this.raceFinished);
     this.onTelemetry({
       speed: Math.abs(this.speed),
       gear: Math.max(1, Math.min(6, Math.floor(Math.max(0, this.speed) / 38) + 1)),
@@ -351,14 +399,18 @@ export class RacingScene {
       lastLapTime: this.lastLapTime,
       bestLapTime: this.bestLapTime,
       countdown: countdownNumber(this.countdownRemaining),
-      racePhase
+      racePhase,
+      nitro: this.nitro,
+      takedowns: this.takedowns
     });
   }
 
   private lastProgress = 0;
 
   private makeCar(name: string, color: Color3, player: boolean): Mesh {
-    const body = MeshBuilder.CreateBox(name, { width: 1.9, height: 0.52, depth: 3.8 }, this.scene);
+    const carShape = player ? this.setup.car.shape : "gt";
+    const dimensions = carShape === "hyper" ? { width: 1.88, height: 0.46, depth: 4.05 } : carShape === "muscle" ? { width: 2.05, height: 0.62, depth: 3.7 } : carShape === "rally" ? { width: 1.95, height: 0.62, depth: 3.55 } : carShape === "sport" ? { width: 1.82, height: 0.48, depth: 3.65 } : { width: 1.9, height: 0.52, depth: 3.8 };
+    const body = MeshBuilder.CreateBox(name, dimensions, this.scene);
     body.position.y = 0.65;
     const paint = new StandardMaterial(name + "-paint", this.scene);
     paint.diffuseColor = color;
@@ -408,7 +460,7 @@ export class RacingScene {
   private makeTrack() {
     const ground = MeshBuilder.CreateGround("arena-ground", { width: 180, height: 150 }, this.scene);
     const groundMat = new StandardMaterial("ground-mat", this.scene);
-    groundMat.diffuseColor = new Color3(0.045, 0.065, 0.085);
+    groundMat.diffuseColor = Color3.FromHexString(this.setup.track.ground);
     groundMat.specularColor = Color3.Black();
     ground.material = groundMat;
 
@@ -417,15 +469,15 @@ export class RacingScene {
     const segments = 112;
     for (let i = 0; i < segments; i++) {
       const t = i / segments * TAU;
-      const nxRaw = Math.cos(t) / RX;
-      const nzRaw = Math.sin(t) / RZ;
+      const nxRaw = Math.cos(t) / this.rx;
+      const nzRaw = Math.sin(t) / this.rz;
       const normalLength = Math.hypot(nxRaw, nzRaw);
       const nx = nxRaw / normalLength;
       const nz = nzRaw / normalLength;
-      const cx = RX * Math.cos(t);
-      const cz = RZ * Math.sin(t);
-      inner.push(new Vector3(cx - nx * ROAD_HALF_WIDTH, 0.02, cz - nz * ROAD_HALF_WIDTH));
-      outer.push(new Vector3(cx + nx * ROAD_HALF_WIDTH, 0.02, cz + nz * ROAD_HALF_WIDTH));
+      const cx = this.rx * Math.cos(t);
+      const cz = this.rz * Math.sin(t);
+      inner.push(new Vector3(cx - nx * this.roadHalfWidth, 0.02, cz - nz * this.roadHalfWidth));
+      outer.push(new Vector3(cx + nx * this.roadHalfWidth, 0.02, cz + nz * this.roadHalfWidth));
     }
 
     const road = MeshBuilder.CreateRibbon("closed-circuit", {
@@ -433,14 +485,14 @@ export class RacingScene {
       sideOrientation: Mesh.DOUBLESIDE
     }, this.scene);
     const roadMat = new StandardMaterial("road-mat", this.scene);
-    roadMat.diffuseColor = new Color3(0.12, 0.15, 0.19);
+    roadMat.diffuseColor = Color3.FromHexString(this.setup.track.road);
     roadMat.specularColor = new Color3(0.16, 0.18, 0.22);
     road.material = roadMat;
 
     const outerLine = MeshBuilder.CreateLines("outer-neon-edge", { points: [...outer, outer[0]] }, this.scene);
-    outerLine.color = new Color3(0.05, 0.8, 0.98);
+    outerLine.color = Color3.FromHexString(this.setup.track.primary);
     const innerLine = MeshBuilder.CreateLines("inner-neon-edge", { points: [...inner, inner[0]] }, this.scene);
-    innerLine.color = new Color3(0.95, 0.035, 0.3);
+    innerLine.color = Color3.FromHexString(this.setup.track.secondary);
 
     const dashMat = new StandardMaterial("lane-markers", this.scene);
     dashMat.emissiveColor = new Color3(0.16, 0.28, 0.32);
@@ -449,8 +501,8 @@ export class RacingScene {
     for (let i = 0; i < 48; i++) {
       const t = i / 48 * TAU;
       const dash = i === 0 ? dashTemplate : dashTemplate.createInstance("lane-dash-" + i);
-      dash.position.set(RX * Math.cos(t), 0.045, RZ * Math.sin(t));
-      dash.rotation.y = Math.atan2(-RX * Math.sin(t), RZ * Math.cos(t));
+      dash.position.set(this.rx * Math.cos(t), 0.045, this.rz * Math.sin(t));
+      dash.rotation.y = Math.atan2(-this.rx * Math.sin(t), this.rz * Math.cos(t));
     }
 
     const finishMat = new StandardMaterial("start-line-mat", this.scene);
@@ -459,7 +511,7 @@ export class RacingScene {
     startTemplate.material = finishMat;
     for (let i = 0; i < 14; i++) {
       const square = i === 0 ? startTemplate : startTemplate.createInstance("start-grid-" + i);
-      square.position.set(-6.5 + i, 0.055, RZ);
+      square.position.set(-6.5 + i, 0.055, this.rz);
     }
     const markerMat = new StandardMaterial("track-marker", this.scene);
     markerMat.emissiveColor = new Color3(0.02, 0.32, 0.42);
@@ -468,7 +520,7 @@ export class RacingScene {
     for (let i = 0; i < 16; i++) {
       const t = i / 16 * TAU;
       const p = i === 0 ? beaconTemplate : beaconTemplate.createInstance("track-beacon-" + i);
-      p.position.set((RX + 11) * Math.cos(t), 0.75, (RZ + 10) * Math.sin(t));
+      p.position.set((this.rx + 11) * Math.cos(t), 0.75, (this.rz + 10) * Math.sin(t));
     }
   }
 
@@ -477,7 +529,7 @@ export class RacingScene {
     const skyMat = new StandardMaterial("sky-mat", this.scene);
     skyMat.backFaceCulling = false;
     skyMat.disableLighting = true;
-    skyMat.emissiveColor = new Color3(0.025, 0.04, 0.085);
+    skyMat.emissiveColor = Color3.FromHexString(this.setup.track.sky);
     sky.material = skyMat;
     sky.isPickable = false;
     const light = new HemisphericLight("ambient", new Vector3(0, 1, 0), this.scene);
@@ -492,8 +544,8 @@ export class RacingScene {
 
   private makeCity() {
     const styles = [
-      { width: 3.4, depth: 3.8, height: 8, bodyColor: new Color3(0.035, 0.07, 0.12), neonColor: new Color3(0.02, 0.48, 0.68) },
-      { width: 4.1, depth: 3.4, height: 12, bodyColor: new Color3(0.055, 0.06, 0.12), neonColor: new Color3(0.22, 0.08, 0.62) },
+      { width: 3.4, depth: 3.8, height: 8, bodyColor: new Color3(0.035, 0.07, 0.12), neonColor: Color3.FromHexString(this.setup.track.primary) },
+      { width: 4.1, depth: 3.4, height: 12, bodyColor: new Color3(0.055, 0.06, 0.12), neonColor: Color3.FromHexString(this.setup.track.secondary) },
       { width: 3.2, depth: 4.2, height: 16, bodyColor: new Color3(0.04, 0.075, 0.11), neonColor: new Color3(0.68, 0.035, 0.19) },
       { width: 4.6, depth: 3.8, height: 10, bodyColor: new Color3(0.065, 0.07, 0.1), neonColor: new Color3(0.04, 0.48, 0.38) }
     ];
@@ -502,8 +554,8 @@ export class RacingScene {
 
     for (let i = 0; i < towerCount; i++) {
       const t = i / towerCount * TAU + 0.035;
-      const x = (RX + 20) * Math.cos(t);
-      const z = (RZ + 18) * Math.sin(t);
+      const x = (this.rx + 20) * Math.cos(t);
+      const z = (this.rz + 18) * Math.sin(t);
       const styleIndex = i % styles.length;
       const style = styles[styleIndex];
       let body: Mesh | ReturnType<Mesh["createInstance"]>;
@@ -547,37 +599,38 @@ export class RacingScene {
 
     for (const side of [-1, 1]) {
       const post = MeshBuilder.CreateBox("start-gate-post", { width: 0.42, height: 6.2, depth: 0.42 }, this.scene);
-      post.position.set(side * 9.1, 3.1, RZ);
+      post.position.set(side * 9.1, 3.1, this.rz);
       post.material = side < 0 ? cyan : pink;
       post.isPickable = false;
     }
     const crossbar = MeshBuilder.CreateBox("start-gate-crossbar", { width: 18.2, height: 0.24, depth: 0.35 }, this.scene);
-    crossbar.position.set(0, 6.15, RZ);
+    crossbar.position.set(0, 6.15, this.rz);
     crossbar.material = cyan;
     crossbar.isPickable = false;
   }
 
   private makeOpponents() {
+    const aiScale = this.setup.difficulty === "easy" ? 0.78 : this.setup.difficulty === "hard" ? 1.13 : 1;
     const configs = [
-      { progress: 0.24, speed: 116, lane: -2.8, color: new Color3(0.04, 0.3, 0.92) },
-      { progress: 0.53, speed: 126, lane: 0, color: new Color3(0.92, 0.52, 0.035) },
-      { progress: 0.84, speed: 108, lane: 2.8, color: new Color3(0.12, 0.75, 0.42) }
+      { progress: 0.24, speed: 116 * aiScale, lane: -2.8, color: new Color3(0.04, 0.3, 0.92) },
+      { progress: 0.53, speed: 126 * aiScale, lane: 0, color: new Color3(0.92, 0.52, 0.035) },
+      { progress: 0.84, speed: 108 * aiScale, lane: 2.8, color: new Color3(0.12, 0.75, 0.42) }
     ];
     this.opponents = configs.map((config, i) => {
       const mesh = this.makeCar("opponent-" + (i + 1), config.color, false);
       const t = Math.PI / 2 + config.progress;
-      const nxRaw = Math.cos(t) / RX;
-      const nzRaw = Math.sin(t) / RZ;
+      const nxRaw = Math.cos(t) / this.rx;
+      const nzRaw = Math.sin(t) / this.rz;
       const nLength = Math.hypot(nxRaw, nzRaw);
       mesh.position.set(
-        RX * Math.cos(t) + nxRaw / nLength * config.lane,
+        this.rx * Math.cos(t) + nxRaw / nLength * config.lane,
         0.65,
-        RZ * Math.sin(t) + nzRaw / nLength * config.lane
+        this.rz * Math.sin(t) + nzRaw / nLength * config.lane
       );
-      mesh.rotation.y = Math.atan2(-RX * Math.sin(t), RZ * Math.cos(t));
+      mesh.rotation.y = Math.atan2(-this.rx * Math.sin(t), this.rz * Math.cos(t));
       // The helper only registers player wheels; gather the opponent's four wheels by name.
       const wheels = this.scene.meshes.filter(m => m.name === "opponent-" + (i + 1) + "-wheel") as Mesh[];
-      return { mesh, progress: config.progress, startProgress: config.progress, speed: config.speed, lane: config.lane, wheels };
+      return { mesh, progress: config.progress, startProgress: config.progress, speed: config.speed, lane: config.lane, wheels, destroyed: false };
     });
   }
 
