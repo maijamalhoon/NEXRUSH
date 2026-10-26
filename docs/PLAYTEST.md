@@ -9,6 +9,14 @@ npm run build
 npm run dev
 ```
 
+## Race start and timing
+
+- [ ] Wait for the 3–2–1 countdown and confirm the GO cue starts the race.
+- [ ] Confirm session and lap timers begin after GO, not while the engine is loading or during countdown.
+- [ ] Complete a full lap; lap increments once and last-lap/best-lap values are recorded.
+- [ ] Complete a slower lap; best lap remains unchanged. Complete a faster lap; best lap updates.
+- [ ] Press R during a lap; timers/records reset and a new countdown starts.
+
 ## Driving loop
 
 - [ ] Accelerate, coast, brake, reverse and steer in both directions.
