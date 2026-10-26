@@ -360,10 +360,12 @@ export class RacingScene {
           this.nitro = Math.min(100, this.nitro + 18);
           this.onRaceEvent({ type: "TAKEDOWN", reward: 35, opponent: opponent.mesh.name });
         } else {
-          this.speed *= 0.68;
+          const armorLevel = this.setup.upgrades.armor || 0;
+          const impactResistance = clamp(this.setup.car.durability / 1000 + armorLevel * 0.025, 0, 0.22);
+          this.speed *= 0.68 + impactResistance;
           this.heading += (this.car.position.x - opponent.mesh.position.x >= 0 ? 1 : -1) * 0.2;
         }
-        this.collisionCooldown = 0.65;
+        this.collisionCooldown = Math.max(0.35, 0.65 - (this.setup.upgrades.armor || 0) * 0.05);
       }
     }
 
