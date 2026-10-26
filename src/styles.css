@@ -6,3 +6,4 @@
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 
 .engine-error{position:absolute;z-index:5;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100vw - 32px));padding:22px 24px;background:#081421f5;border:1px solid #ff507080;border-left:3px solid #ff5070;box-shadow:0 18px 60px #000b;color:#dceaf5}.engine-error b{font-size:11px;letter-spacing:2px;color:#ff7890}.engine-error p{font-size:12px;line-height:1.7;color:#a7bacb;margin:10px 0 0}
+.drift-active{color:#ffb454!important;text-shadow:0 0 9px #ff893844}.drift-idle{color:#6e899c!important}
