@@ -19,3 +19,16 @@
 
 .selection-meta{display:flex;flex-direction:column;gap:8px}.personal-best{color:#6e8498;font-size:7px;font-weight:900;letter-spacing:1.1px}.difficulty-picker{display:flex;flex-direction:column;gap:7px;min-width:118px}.difficulty-picker small{color:#6b8095;font-size:7px;font-weight:900;letter-spacing:1.2px}.difficulty-picker select{min-height:37px;padding:0 10px;border:1px solid #7aa9bd35;background:#08131f;color:#e5f1fa;font-size:8px;font-weight:800;letter-spacing:1px}
 @media(max-width:760px){.selection-footer{flex-wrap:wrap}.selection-meta{flex:1 1 48%}.difficulty-picker{flex:1 1 38%;min-width:100px}.difficulty-picker select{min-height:36px}.selection-footer>.btn{flex:1 1 100%}.personal-best{font-size:6px}}
+
+/* Arcade-racing feedback: readable drift scoring and a restrained boost-speed effect. */
+.race-vignette:after{content:"";position:absolute;inset:-12%;opacity:0;pointer-events:none;background:repeating-linear-gradient(105deg,transparent 0 7.5%,color-mix(in srgb,var(--track-primary) 42%,transparent) 7.6% 7.8%,transparent 7.9% 11.5%);transform:scaleX(.7);transition:opacity .12s ease}
+.race-boosting .race-vignette:after{opacity:.38;animation:nexrush-speed-lines .38s linear infinite}
+@keyframes nexrush-speed-lines{from{transform:translateX(-2%) scaleX(.72)}to{transform:translateX(2%) scaleX(1.05)}}
+.nitro-active .nitro-meter i{box-shadow:0 0 13px var(--track-primary);filter:brightness(1.4)}
+.nitro-active>div:first-child{ text-shadow:0 0 12px var(--track-primary)}
+.drift-score{margin-top:12px;padding:9px 10px;border-left:2px solid #6b8090;background:linear-gradient(90deg,#9db6c20c,transparent);display:flex;flex-direction:column;gap:5px;transition:background .15s,border-color .15s}
+.drift-score small{font-size:7px;font-weight:900;letter-spacing:1.3px;color:#8195a8}
+.drift-score b{font:800 13px "Barlow Condensed",Impact,sans-serif;letter-spacing:.7px;color:#c3d3e0;font-variant-numeric:tabular-nums}
+.drift-score.drift-active{border-color:#ff8b62;background:linear-gradient(90deg,#ff8b621f,transparent)}
+.drift-score.drift-active small,.drift-score.drift-active b{color:#ffb083;text-shadow:0 0 12px #ff713d38}
+@media(max-width:760px){.drift-score{margin-top:7px;padding:6px 7px;gap:3px}.drift-score small{font-size:5px}.drift-score b{font-size:10px}.race-vignette:after{background:repeating-linear-gradient(105deg,transparent 0 9%,color-mix(in srgb,var(--track-primary) 34%,transparent) 9.1% 9.3%,transparent 9.4% 14%)}}
