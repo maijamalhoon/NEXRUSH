@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyGrassDrag, countdownNumber, crossedStartFinish, driftAngleDegrees, getRacePhase, positiveAngle, TAU, updateBestLap } from "./raceMath";
+import { applyGrassDrag, countdownNumber, crossedStartFinish, driftAngleDegrees, getRacePhase, isFinalLap, positiveAngle, TAU, TOTAL_LAPS, updateBestLap } from "./raceMath";
 
 describe("race math", () => {
   it("normalizes negative angles into one lap", () => {
@@ -44,6 +44,7 @@ describe("race session timing", () => {
     expect(getRacePhase(false, 0)).toBe("COUNTDOWN");
     expect(getRacePhase(true, 0.2)).toBe("GO");
     expect(getRacePhase(true, 0)).toBe("RACING");
+    expect(getRacePhase(true, 0, true)).toBe("FINISHED");
   });
 
   it("keeps the fastest valid completed lap as the best lap", () => {
@@ -52,5 +53,16 @@ describe("race session timing", () => {
     expect(updateBestLap(88.7, 92.4)).toBe(88.7);
     expect(updateBestLap(0, 92.4)).toBe(92.4);
     expect(updateBestLap(Number.NaN, 92.4)).toBe(92.4);
+  });
+});
+
+describe("race distance", () => {
+  it("finishes exactly after the configured final lap", () => {
+    expect(TOTAL_LAPS).toBe(3);
+    expect(isFinalLap(1)).toBe(false);
+    expect(isFinalLap(2)).toBe(false);
+    expect(isFinalLap(3)).toBe(true);
+    expect(isFinalLap(4)).toBe(true);
+    expect(isFinalLap(1, 0)).toBe(false);
   });
 });
