@@ -56,10 +56,11 @@ export class RacingScene {
   private clear = () => { this.keys.clear(); this.controls.clear(); };
 
   constructor(canvas: HTMLCanvasElement, private onTelemetry: (t: Telemetry) => void) {
-    this.engine = new Engine(canvas, true, {
-      preserveDrawingBuffer: false, stencil: false, antialias: false,
-      powerPreference: "high-performance", adaptToDeviceRatio: false
-    });
+    this.engine = new Engine(canvas, false, {
+      preserveDrawingBuffer: false,
+      stencil: false,
+      powerPreference: "high-performance"
+    }, false);
     this.engine.setHardwareScalingLevel(1 / this.autoScale);
     this.scene = new Scene(this.engine);
     this.scene.clearColor = new Color4(0.025, 0.035, 0.065, 1);
