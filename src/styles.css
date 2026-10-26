@@ -32,3 +32,16 @@
 .drift-score.drift-active{border-color:#ff8b62;background:linear-gradient(90deg,#ff8b621f,transparent)}
 .drift-score.drift-active small,.drift-score.drift-active b{color:#ffb083;text-shadow:0 0 12px #ff713d38}
 @media(max-width:760px){.drift-score{margin-top:7px;padding:6px 7px;gap:3px}.drift-score small{font-size:5px}.drift-score b{font-size:10px}.race-vignette:after{background:repeating-linear-gradient(105deg,transparent 0 9%,color-mix(in srgb,var(--track-primary) 34%,transparent) 9.1% 9.3%,transparent 9.4% 14%)}}
+
+
+/* Real-time 3D vehicle showroom */
+.car-showroom{position:relative;z-index:1;width:100%;max-width:560px;height:280px;margin:0 auto;min-width:0}
+.car-showroom-canvas{display:block;width:100%;height:100%;outline:none;touch-action:pan-y;cursor:grab}
+.car-showroom-canvas:active{cursor:grabbing}
+.car-showroom:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,#07101b22,transparent 18% 82%,#07101b22);mix-blend-mode:screen}
+.showroom-hint{position:absolute;right:7px;bottom:5px;z-index:2;font-size:7px;letter-spacing:1.4px;font-weight:900;color:#8da7bc8c;pointer-events:none}
+.car-showroom-loading{position:relative;z-index:1;height:280px;display:grid;place-items:center;color:#90a8ba;font-size:9px;letter-spacing:2px}
+.upgrade-car .car-showroom{width:260px;max-width:40%;height:165px;flex:0 0 260px}
+.upgrade-car .showroom-hint{font-size:6px;letter-spacing:1px}
+@media(max-width:760px){.car-showroom{height:220px}.car-showroom-loading{height:220px}.upgrade-car .car-showroom{height:145px;flex-basis:180px;max-width:48%}}
+@media(max-width:520px){.upgrade-car{align-items:flex-start;gap:12px}.upgrade-car .car-showroom{height:125px;flex:0 0 46%;max-width:46%}.upgrade-car .showroom-hint{font-size:5px;letter-spacing:.4px}.car-showroom{height:195px}}
