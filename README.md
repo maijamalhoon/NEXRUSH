@@ -35,7 +35,7 @@ Open the local URL printed by Vite. Create an optimized production bundle with `
 
 ## Current limitations
 
-This is an early arcade prototype, not a finished racing simulator. The AI currently follows a fixed racing line and speed; tire physics, polished drift behaviour, full collision geometry, lap timing/results, sound, car selection, accessibility testing, and real-time multiplayer are not implemented yet. Browser/device performance and the CI production build still need to be verified on real targets before calling the prototype release-ready.
+This is an early arcade prototype, not a finished racing simulator. The AI currently follows a fixed racing line and speed; tire physics, polished drift behaviour, full collision geometry, lap timing/results, sound, car selection, accessibility testing, and real-time multiplayer are not implemented yet. The CI TypeScript check and production build have passed. Real browser/device compatibility and frame-rate performance still need hands-on testing before calling the prototype release-ready.
 
 ## Development direction
 
