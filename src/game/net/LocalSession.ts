@@ -42,7 +42,8 @@ export class LocalSession implements RaceSession {
       true,
       playerSlot.position.x,
       playerSlot.position.z,
-      playerSlot.heading
+      playerSlot.heading,
+      this.config.playerColor || "#D4FF2A"
     );
     this.sim.addCar(playerState, playerSpec);
 
@@ -62,7 +63,8 @@ export class LocalSession implements RaceSession {
         false,
         slot.position.x,
         slot.position.z,
-        slot.heading
+        slot.heading,
+        template.color
       );
       this.sim.addCar(botState, botSpec);
 

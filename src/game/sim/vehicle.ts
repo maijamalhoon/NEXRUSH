@@ -16,12 +16,14 @@ export function createInitialCarSimState(
   isPlayer: boolean,
   x = 0,
   z = 0,
-  heading = 0
+  heading = 0,
+  color?: string
 ): CarSimState {
   return {
     id,
     name,
     isPlayer,
+    color,
     position: { x, z },
     velocity: { x: 0, z: 0 },
     heading,
@@ -59,11 +61,11 @@ export function stepVehiclePhysics(
 ): CarSimState {
   const next = { ...state, position: { ...state.position }, velocity: { ...state.velocity } };
 
-  // Heading unit vectors
-  const forwardX = Math.cos(next.heading);
-  const forwardZ = Math.sin(next.heading);
-  const rightX = -Math.sin(next.heading);
-  const rightZ = Math.cos(next.heading);
+  // Heading unit vectors in 3D Babylon coordinates (heading 0 = +Z forward, +X right)
+  const forwardX = Math.sin(next.heading);
+  const forwardZ = Math.cos(next.heading);
+  const rightX = Math.cos(next.heading);
+  const rightZ = -Math.sin(next.heading);
 
   // Velocity components in local car coordinates
   const vf = next.velocity.x * forwardX + next.velocity.z * forwardZ; // forward (m/s)
@@ -179,10 +181,10 @@ export function stepVehiclePhysics(
   next.position.z += next.velocity.z * dt;
 
   // Re-calculate slip metrics with updated heading and velocity
-  const updatedForwardX = Math.cos(next.heading);
-  const updatedForwardZ = Math.sin(next.heading);
-  const updatedRightX = -Math.sin(next.heading);
-  const updatedRightZ = Math.cos(next.heading);
+  const updatedForwardX = Math.sin(next.heading);
+  const updatedForwardZ = Math.cos(next.heading);
+  const updatedRightX = Math.cos(next.heading);
+  const updatedRightZ = -Math.sin(next.heading);
 
   const newVf = next.velocity.x * updatedForwardX + next.velocity.z * updatedForwardZ;
   const newVl = next.velocity.x * updatedRightX + next.velocity.z * updatedRightZ;

@@ -126,7 +126,8 @@ export default function App() {
   // Update camera mode depending on active screen
   useEffect(() => {
     if (screen === "race") {
-      sceneManagerRef.current?.setCameraMode("CHASE");
+      const playerCar = sessionRef.current?.getState().cars["player"];
+      sceneManagerRef.current?.setCameraMode("CHASE", playerCar?.heading);
     } else {
       sceneManagerRef.current?.setCameraMode("ORBIT");
     }
@@ -172,7 +173,8 @@ export default function App() {
     // Update 3D scene track
     if (sceneManagerRef.current) {
       sceneManagerRef.current.loadTrack(session.track);
-      sceneManagerRef.current.setCameraMode("CHASE");
+      const playerSlot = session.track.getGridSlot(0);
+      sceneManagerRef.current.setCameraMode("CHASE", playerSlot.heading);
     }
 
     setIsPaused(false);

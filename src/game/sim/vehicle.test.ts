@@ -21,7 +21,7 @@ describe("Vehicle Physics", () => {
     }
 
     expect(state.speedKmh).toBeGreaterThan(25);
-    expect(state.position.x).toBeGreaterThan(0);
+    expect(state.position.z).toBeGreaterThan(0);
     expect(state.rpm).toBeGreaterThan(1500);
   });
 

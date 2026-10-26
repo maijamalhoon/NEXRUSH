@@ -37,9 +37,10 @@ export interface CarSimState {
   id: string;
   name: string;
   isPlayer: boolean;
+  color?: string;
   position: Vector2D;
   velocity: Vector2D;
-  heading: number; // yaw angle in radians (0 = +X, PI/2 = +Z)
+  heading: number; // yaw angle in radians (0 = +Z, PI/2 = +X)
   angularVelocity: number;
   speedKmh: number;
   lateralVelocity: number;

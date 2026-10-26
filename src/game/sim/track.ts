@@ -101,8 +101,8 @@ export class TrackSpline {
       tz /= tLen;
 
       // Normal is perpendicular to tangent in XZ (facing track right)
-      const nx = -tz;
-      const nz = tx;
+      const nx = tz;
+      const nz = -tx;
 
       const progress = tempDistances[i] / this.totalLength;
       const isCheckpoint = i % Math.floor(m / this.checkpointCount) === 0;
@@ -248,7 +248,7 @@ export class TrackSpline {
 
     const posX = sample.position.x + sample.normal.x * laneOffset;
     const posZ = sample.position.z + sample.normal.z * laneOffset;
-    const heading = Math.atan2(sample.tangent.z, sample.tangent.x);
+    const heading = Math.atan2(sample.tangent.x, sample.tangent.z);
 
     return {
       position: { x: posX, z: posZ },

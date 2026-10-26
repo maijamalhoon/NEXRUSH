@@ -44,14 +44,14 @@ export function computeBotInput(
 
     if (distSq < 15 * 15) {
       // Car is close: calculate if it is ahead in our heading
-      const forwardX = Math.cos(state.heading);
-      const forwardZ = Math.sin(state.heading);
+      const forwardX = Math.sin(state.heading);
+      const forwardZ = Math.cos(state.heading);
       const dot = dx * forwardX + dz * forwardZ;
 
       if (dot > 0 && dot < 14) {
         // Car is directly ahead: dodge to opposite side
-        const rightX = -Math.sin(state.heading);
-        const rightZ = Math.cos(state.heading);
+        const rightX = Math.cos(state.heading);
+        const rightZ = -Math.sin(state.heading);
         const latDot = dx * rightX + dz * rightZ;
         targetOffset = latDot > 0 ? -2.8 : 2.8;
       }
@@ -64,7 +64,7 @@ export function computeBotInput(
   // Steering angle towards target
   const toTargetX = targetX - state.position.x;
   const toTargetZ = targetZ - state.position.z;
-  const desiredHeading = Math.atan2(toTargetZ, toTargetX);
+  const desiredHeading = Math.atan2(toTargetX, toTargetZ);
 
   let angleDiff = desiredHeading - state.heading;
   while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
