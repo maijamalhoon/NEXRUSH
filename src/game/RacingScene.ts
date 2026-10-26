@@ -32,6 +32,7 @@ export class RacingScene {
   private wheels: Mesh[] = [];
   private opponents: Opponent[] = [];
   private optionalScenery: Array<{ isVisible: boolean }> = [];
+  private autoSceneryVisible = true;
   private keys = new Set<string>();
   private controls = new Set<Control>();
   private mode: QualityMode = "auto";
@@ -156,7 +157,11 @@ export class RacingScene {
   private applyQuality() {
     const scale = this.mode === "auto" ? this.autoScale : scales[this.mode];
     this.engine.setHardwareScalingLevel(1 / scale);
-    const showScenery = this.mode !== "low" && !(this.mode === "auto" && scale <= 0.62);
+    if (this.mode === "low") this.autoSceneryVisible = false;
+    else if (this.mode === "medium" || this.mode === "high") this.autoSceneryVisible = true;
+    else if (scale <= 0.62) this.autoSceneryVisible = false;
+    else if (scale >= 0.78) this.autoSceneryVisible = true;
+    const showScenery = this.mode !== "low" && (this.mode !== "auto" || this.autoSceneryVisible);
     for (const item of this.optionalScenery) item.isVisible = showScenery;
   }
 
