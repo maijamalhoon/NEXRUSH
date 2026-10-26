@@ -1,6 +1,10 @@
 # NEXRUSH
 
-**A performance-first 3D browser racing prototype.** The current milestone is a playable closed circuit with three computer-controlled rivals. Real-time multiplayer is planned for a later milestone.
+**A performance-first 3D browser racing prototype.** Drive a closed neon circuit against three computer-controlled rivals, with arcade drifting, car reset, adaptive rendering and mobile touch controls. Real-time multiplayer is planned for a later milestone.
+
+## Live preview
+
+Play the current browser prototype: https://nexrush.vercel.app/
 
 ## Run locally
 
@@ -27,10 +31,11 @@ Open the local URL printed by Vite. Run the racing logic tests with `npm test`. 
 ## Current prototype
 
 - Babylon.js 3D scene with a closed oval circuit, neon track edges, lane markers and a chase camera.
-- Three lightweight AI rivals following the circuit at different target speeds.
+- Three lightweight AI rivals following the circuit at different target speeds and offset racing lines.
+- Instanced low-poly neon skyline, start gate, and emissive front/rear car lights; Performance mode hides optional skyline detail.
 - Arcade acceleration, braking, handbrake and lateral-momentum drift model, grass slowdown, simple opponent contact response, and reset-to-grid control.
 - Live speed, RPM, gear, elapsed time, lap, position and off-road HUD indicators.
-- Auto, Performance, Balanced and High rendering quality settings. Auto mode adjusts render resolution in response to frame-rate samples.
+- Auto, Performance, Balanced and High rendering quality settings. Auto mode adjusts render resolution and uses hysteresis before restoring optional scenery detail to avoid quality flicker.
 - Responsive desktop/mobile HUD and touch controls.
 - Unit tests for deterministic lap-crossing, off-road drag and drift-angle math.
 - GitHub Actions workflow for unit tests, TypeScript checking and production builds on pushes and pull requests to `main`.
