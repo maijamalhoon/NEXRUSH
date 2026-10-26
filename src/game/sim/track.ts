@@ -46,7 +46,8 @@ export class TrackSpline {
     if (n < 3) throw new Error("Track must have at least 3 control points");
 
     // First pass: generate rough samples along Catmull-Rom segments
-    const roughPoints: Array<{ x: number; y: number; z: number; width: number; cpIndex: number }> = [];
+    const roughPoints: Array<{ x: number; y: number; z: number; width: number; cpIndex: number }> =
+      [];
 
     for (let i = 0; i < n; i++) {
       const p0 = pts[(i - 1 + n) % n];
@@ -63,9 +64,10 @@ export class TrackSpline {
         const x = catmullRom(p0.x, p1.x, p2.x, p3.x, t);
         const y = catmullRom(p0.y, p1.y, p2.y, p3.y, t);
         const z = catmullRom(p0.z, p1.z, p2.z, p3.z, t);
-        const width = p1.width !== undefined && p2.width !== undefined
-          ? p1.width + (p2.width - p1.width) * t
-          : this.defaultWidth;
+        const width =
+          p1.width !== undefined && p2.width !== undefined
+            ? p1.width + (p2.width - p1.width) * t
+            : this.defaultWidth;
 
         roughPoints.push({ x, y, z, width, cpIndex: i });
       }
@@ -103,7 +105,7 @@ export class TrackSpline {
       const nz = tx;
 
       const progress = tempDistances[i] / this.totalLength;
-      const isCheckpoint = (i % Math.floor(m / this.checkpointCount)) === 0;
+      const isCheckpoint = i % Math.floor(m / this.checkpointCount) === 0;
 
       this.samples.push({
         position: { x: curr.x, y: curr.y, z: curr.z },
@@ -238,7 +240,7 @@ export class TrackSpline {
     const slotSpacingMeters = 8.0;
     const totalDist = this.totalLength;
     const startOffsetDist = totalDist - 12 - slotIndex * slotSpacingMeters;
-    const s = ((startOffsetDist % totalDist) + totalDist) % totalDist / totalDist;
+    const s = (((startOffsetDist % totalDist) + totalDist) % totalDist) / totalDist;
 
     const sample = this.getAtProgress(s);
     // Stagger left and right lanes

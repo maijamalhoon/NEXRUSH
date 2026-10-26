@@ -31,7 +31,8 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({
         padding: "clamp(16px, 4vw, 32px)",
         pointerEvents: "auto",
         userSelect: "none",
-        background: "linear-gradient(180deg, rgba(11, 13, 18, 0.7) 0%, rgba(11, 13, 18, 0.3) 50%, rgba(11, 13, 18, 0.85) 100%)",
+        background:
+          "linear-gradient(180deg, rgba(11, 13, 18, 0.7) 0%, rgba(11, 13, 18, 0.3) 50%, rgba(11, 13, 18, 0.85) 100%)",
       }}
     >
       {/* Top Header */}
@@ -40,12 +41,7 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({
 
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           {canInstall && (
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<Download size={16} />}
-              onClick={onInstall}
-            >
+            <Button variant="secondary" size="sm" icon={<Download size={16} />} onClick={onInstall}>
               Install
             </Button>
           )}
@@ -79,13 +75,7 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({
           Race
         </Button>
 
-        <Button
-          variant="secondary"
-          size="md"
-          fullWidth
-          icon={<Car size={20} />}
-          onClick={onGarage}
-        >
+        <Button variant="secondary" size="md" fullWidth icon={<Car size={20} />} onClick={onGarage}>
           Garage
         </Button>
 
@@ -100,16 +90,17 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({
         </Button>
 
         <div style={{ position: "relative" }}>
-          <Button
-            variant="secondary"
-            size="md"
-            fullWidth
-            disabled
-            icon={<Globe size={20} />}
-          >
+          <Button variant="secondary" size="md" fullWidth disabled icon={<Globe size={20} />}>
             Multiplayer
           </Button>
-          <div style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)" }}>
+          <div
+            style={{
+              position: "absolute",
+              right: "12px",
+              top: "50%",
+              transform: "translateY(-50%)",
+            }}
+          >
             <Badge label="Soon" variant="rush" size="sm" />
           </div>
         </div>

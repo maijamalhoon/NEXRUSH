@@ -19,11 +19,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({
-  settings,
-  onChange,
-  onClose,
-}) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ settings, onChange, onClose }) => {
   return (
     <div
       style={{
@@ -81,7 +77,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Graphics Section */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "var(--text-muted)", fontWeight: 700 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "12px",
+              color: "var(--text-muted)",
+              fontWeight: 700,
+            }}
+          >
             <Monitor size={15} /> GRAPHICS QUALITY
           </div>
 
@@ -93,9 +98,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 style={{
                   padding: "10px 4px",
                   borderRadius: "var(--radius-sm)",
-                  border: settings.quality === preset ? "1px solid var(--accent-primary)" : "1px solid var(--border-subtle)",
-                  backgroundColor: settings.quality === preset ? "var(--accent-primary-alpha)" : "var(--surface-raised)",
-                  color: settings.quality === preset ? "var(--accent-primary)" : "var(--text-muted)",
+                  border:
+                    settings.quality === preset
+                      ? "1px solid var(--accent-primary)"
+                      : "1px solid var(--border-subtle)",
+                  backgroundColor:
+                    settings.quality === preset
+                      ? "var(--accent-primary-alpha)"
+                      : "var(--surface-raised)",
+                  color:
+                    settings.quality === preset ? "var(--accent-primary)" : "var(--text-muted)",
                   fontFamily: "var(--font-display)",
                   fontSize: "12px",
                   fontWeight: 700,
@@ -111,14 +123,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Audio Section */}
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "var(--text-muted)", fontWeight: 700 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "12px",
+              color: "var(--text-muted)",
+              fontWeight: 700,
+            }}
+          >
             <Volume2 size={15} /> AUDIO LEVELS
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--text-muted)" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: "12px",
+                color: "var(--text-muted)",
+              }}
+            >
               <span>SFX & Engine</span>
-              <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>{settings.soundVolume}%</span>
+              <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>
+                {settings.soundVolume}%
+              </span>
             </div>
             <input
               type="range"
@@ -131,9 +161,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--text-muted)" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: "12px",
+                color: "var(--text-muted)",
+              }}
+            >
               <span>Music</span>
-              <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>{settings.musicVolume}%</span>
+              <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>
+                {settings.musicVolume}%
+              </span>
             </div>
             <input
               type="range"
@@ -148,7 +187,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Controls Section */}
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "var(--text-muted)", fontWeight: 700 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "12px",
+              color: "var(--text-muted)",
+              fontWeight: 700,
+            }}
+          >
             <Sliders size={15} /> CONTROLS & ASSISTS
           </div>
 

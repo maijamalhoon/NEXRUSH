@@ -5,7 +5,11 @@ export function positiveAngle(angle: number): number {
 }
 
 /** True only when the player crosses the start line forwards, not in reverse. */
-export function crossedStartFinish(previousProgress: number, currentProgress: number, speedKmh: number): boolean {
+export function crossedStartFinish(
+  previousProgress: number,
+  currentProgress: number,
+  speedKmh: number
+): boolean {
   return speedKmh > 0 && previousProgress > TAU - 0.12 && currentProgress < 0.12;
 }
 
@@ -17,7 +21,7 @@ export function applyGrassDrag(speedKmh: number, deltaSeconds: number): number {
 /** Signed slip angle in degrees, with a low-speed guard to avoid noisy readings. */
 export function driftAngleDegrees(lateralVelocity: number, speedKmh: number): number {
   const forwardSpeed = Math.max(3, Math.abs(speedKmh) / 3.6);
-  return Math.round(Math.atan2(lateralVelocity, forwardSpeed) * 180 / Math.PI);
+  return Math.round((Math.atan2(lateralVelocity, forwardSpeed) * 180) / Math.PI);
 }
 
 export type RacePhase = "COUNTDOWN" | "GO" | "RACING";
@@ -36,6 +40,7 @@ export function countdownNumber(remainingSeconds: number): number {
 /** Records a completed lap without letting a slower lap replace the best. */
 export function updateBestLap(lapSeconds: number, bestSeconds: number): number {
   if (!Number.isFinite(lapSeconds) || lapSeconds <= 0) return bestSeconds;
-  if (!Number.isFinite(bestSeconds) || bestSeconds <= 0 || lapSeconds < bestSeconds) return lapSeconds;
+  if (!Number.isFinite(bestSeconds) || bestSeconds <= 0 || lapSeconds < bestSeconds)
+    return lapSeconds;
   return bestSeconds;
 }

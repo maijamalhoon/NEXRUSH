@@ -88,13 +88,7 @@ export const PauseModal: React.FC<PauseModalProps> = ({
           Settings
         </Button>
 
-        <Button
-          variant="ghost"
-          size="md"
-          fullWidth
-          icon={<Home size={18} />}
-          onClick={onQuit}
-        >
+        <Button variant="ghost" size="md" fullWidth icon={<Home size={18} />} onClick={onQuit}>
           Main Menu
         </Button>
       </div>

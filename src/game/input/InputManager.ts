@@ -120,7 +120,13 @@ export class InputManager {
   /**
    * Reads Gamepad API if available.
    */
-  private readGamepad(): { steer: number; throttle: number; brake: number; handbrake: boolean; boost: boolean } {
+  private readGamepad(): {
+    steer: number;
+    throttle: number;
+    brake: number;
+    handbrake: boolean;
+    boost: boolean;
+  } {
     if (typeof navigator === "undefined" || !navigator.getGamepads) {
       return { steer: 0, throttle: 0, brake: 0, handbrake: false, boost: false };
     }
@@ -141,7 +147,7 @@ export class InputManager {
         // Button A / Cross: gp.buttons[0] (Boost)
         const boost = gp.buttons[0]?.pressed || false;
         // Button B / Circle or X: gp.buttons[1] or gp.buttons[2] (Handbrake)
-        const handbrake = (gp.buttons[1]?.pressed || gp.buttons[2]?.pressed) || false;
+        const handbrake = gp.buttons[1]?.pressed || gp.buttons[2]?.pressed || false;
 
         return { steer, throttle: throttleBtn, brake: brakeBtn, handbrake, boost };
       }

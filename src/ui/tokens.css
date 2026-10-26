@@ -1,33 +1,34 @@
 :root {
   /* 60 / 30 / 10 Motorsport Palette */
-  --bg-root: #0B0D12;
-  --surface-base: #12151C;
-  --surface-raised: #1A1F2A;
+  --bg-root: #0b0d12;
+  --surface-base: #12151c;
+  --surface-raised: #1a1f2a;
   --surface-glass: rgba(18, 21, 28, 0.85);
   --surface-glass-heavy: rgba(11, 13, 18, 0.92);
 
-  --border-subtle: #262C3A;
-  --border-active: #3E475B;
+  --border-subtle: #262c3a;
+  --border-active: #3e475b;
 
-  --text-primary: #F4F6FA;
-  --text-muted: #8B94A7;
-  --text-dim: #545E75;
+  --text-primary: #f4f6fa;
+  --text-muted: #8b94a7;
+  --text-dim: #545e75;
 
   /* Accent Colors */
-  --accent-primary: #D4FF2A;       /* Volt lime (action, hero brand, P1) */
+  --accent-primary: #d4ff2a; /* Volt lime (action, hero brand, P1) */
   --accent-primary-hover: #b8e61a;
   --accent-primary-alpha: rgba(212, 255, 42, 0.15);
 
-  --accent-rush: #4FD8FF;          /* Ice blue (RUSH burst) */
+  --accent-rush: #4fd8ff; /* Ice blue (RUSH burst) */
   --accent-rush-glow: rgba(79, 216, 255, 0.35);
 
-  --accent-danger: #FF4D2E;        /* Signal red (brake, off-track) */
+  --accent-danger: #ff4d2e; /* Signal red (brake, off-track) */
   --accent-danger-alpha: rgba(255, 77, 46, 0.18);
 
-  --accent-success: #3DDC97;       /* Green (best lap, unlocked) */
+  --accent-success: #3ddc97; /* Green (best lap, unlocked) */
 
   /* Typography */
-  --font-display: "Chakra Petch", "Saira Condensed", "Barlow Condensed", "Impact", "Arial Narrow", sans-serif;
+  --font-display:
+    "Chakra Petch", "Saira Condensed", "Barlow Condensed", "Impact", "Arial Narrow", sans-serif;
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
   /* Uniform Radius - No Random Clip Paths */

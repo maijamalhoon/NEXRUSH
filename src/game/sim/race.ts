@@ -23,10 +23,7 @@ export class RaceSimulation {
     };
   }
 
-  public addCar(
-    carState: CarSimState,
-    spec: CarSpec
-  ): void {
+  public addCar(carState: CarSimState, spec: CarSpec): void {
     this.state.cars[carState.id] = carState;
     this.carSpecs.set(carState.id, spec);
     this.prevLapProgress.set(carState.id, carState.lapProgress);
@@ -63,7 +60,14 @@ export class RaceSimulation {
       if (car.finished) continue;
 
       const spec = this.carSpecs.get(car.id) || CARS[0];
-      const emptyInput: InputFrame = { steer: 0, throttle: 0, brake: 0, handbrake: false, boost: false, tick: this.state.tick };
+      const emptyInput: InputFrame = {
+        steer: 0,
+        throttle: 0,
+        brake: 0,
+        handbrake: false,
+        boost: false,
+        tick: this.state.tick,
+      };
       const rawInput = inputs[car.id] || emptyInput;
       const input = canDrive ? rawInput : { ...rawInput, throttle: 0, boost: false };
 
@@ -74,7 +78,11 @@ export class RaceSimulation {
       resolveTrackBarriers(updated, this.track);
 
       // Progress and checkpoints
-      const trackInfo = this.track.findNearest(updated.position.x, updated.position.z, updated.lapProgress);
+      const trackInfo = this.track.findNearest(
+        updated.position.x,
+        updated.position.z,
+        updated.lapProgress
+      );
       const prevProgress = this.prevLapProgress.get(car.id) ?? trackInfo.progress;
       updated.lapProgress = trackInfo.progress;
 
@@ -100,7 +108,7 @@ export class RaceSimulation {
         }
       }
 
-      updated.totalProgress = (updated.lap - 1) + updated.lapProgress;
+      updated.totalProgress = updated.lap - 1 + updated.lapProgress;
       this.prevLapProgress.set(car.id, updated.lapProgress);
       this.state.cars[car.id] = updated;
     }

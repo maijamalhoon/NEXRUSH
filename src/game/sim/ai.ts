@@ -28,7 +28,7 @@ export function computeBotInput(
   // Lookahead distance scales with speed (approx 0.8s ahead)
   const currentSpeedMs = Math.max(3, state.speedKmh / 3.6);
   const lookaheadDist = Math.max(12, currentSpeedMs * 0.75);
-  const lookaheadProgress = (info.progress + (lookaheadDist / track.totalLength)) % 1;
+  const lookaheadProgress = (info.progress + lookaheadDist / track.totalLength) % 1;
 
   const targetSample = track.getAtProgress(lookaheadProgress);
 
@@ -75,7 +75,7 @@ export function computeBotInput(
   // Corner curvature analysis for braking point
   const sampleFar = track.getAtProgress((lookaheadProgress + 0.03) % 1);
   const curvature = Math.abs(
-    (targetSample.tangent.x * sampleFar.tangent.z) - (targetSample.tangent.z * sampleFar.tangent.x)
+    targetSample.tangent.x * sampleFar.tangent.z - targetSample.tangent.z * sampleFar.tangent.x
   );
 
   // Target corner speed (m/s)

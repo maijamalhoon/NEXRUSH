@@ -7,7 +7,14 @@ describe("Vehicle Physics", () => {
   it("accelerates forward when throttle is pressed", () => {
     const spec = CARS[0];
     let state = createInitialCarSimState("test", "TestCar", true);
-    const input: InputFrame = { steer: 0, throttle: 1.0, brake: 0, handbrake: false, boost: false, tick: 1 };
+    const input: InputFrame = {
+      steer: 0,
+      throttle: 1.0,
+      brake: 0,
+      handbrake: false,
+      boost: false,
+      tick: 1,
+    };
 
     for (let i = 0; i < 60; i++) {
       state = stepVehiclePhysics(state, input, spec);
@@ -21,14 +28,28 @@ describe("Vehicle Physics", () => {
   it("brakes effectively when moving forward", () => {
     const spec = CARS[0];
     let state = createInitialCarSimState("test", "TestCar", true);
-    const accelInput: InputFrame = { steer: 0, throttle: 1.0, brake: 0, handbrake: false, boost: false, tick: 1 };
+    const accelInput: InputFrame = {
+      steer: 0,
+      throttle: 1.0,
+      brake: 0,
+      handbrake: false,
+      boost: false,
+      tick: 1,
+    };
 
     for (let i = 0; i < 60; i++) {
       state = stepVehiclePhysics(state, accelInput, spec);
     }
     const speedBeforeBraking = state.speedKmh;
 
-    const brakeInput: InputFrame = { steer: 0, throttle: 0, brake: 1.0, handbrake: false, boost: false, tick: 61 };
+    const brakeInput: InputFrame = {
+      steer: 0,
+      throttle: 0,
+      brake: 1.0,
+      handbrake: false,
+      boost: false,
+      tick: 61,
+    };
     for (let i = 0; i < 30; i++) {
       state = stepVehiclePhysics(state, brakeInput, spec);
     }
@@ -42,13 +63,27 @@ describe("Vehicle Physics", () => {
     state.rushMeter = 10;
 
     // First build forward speed
-    const accelInput: InputFrame = { steer: 0, throttle: 1.0, brake: 0, handbrake: false, boost: false, tick: 1 };
+    const accelInput: InputFrame = {
+      steer: 0,
+      throttle: 1.0,
+      brake: 0,
+      handbrake: false,
+      boost: false,
+      tick: 1,
+    };
     for (let i = 0; i < 90; i++) {
       state = stepVehiclePhysics(state, accelInput, spec);
     }
 
     // Now turn hard with handbrake to induce drift
-    const driftInput: InputFrame = { steer: 0.8, throttle: 0.8, brake: 0, handbrake: true, boost: false, tick: 91 };
+    const driftInput: InputFrame = {
+      steer: 0.8,
+      throttle: 0.8,
+      brake: 0,
+      handbrake: true,
+      boost: false,
+      tick: 91,
+    };
     for (let i = 0; i < 30; i++) {
       state = stepVehiclePhysics(state, driftInput, spec);
     }

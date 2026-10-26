@@ -46,7 +46,9 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
     >
       {/* Header */}
       <header style={{ textAlign: "center", marginTop: "12px" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+        <div
+          style={{ display: "inline-flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}
+        >
           <Trophy size={28} color={isWinner ? "var(--accent-primary)" : "var(--accent-rush)"} />
           <Badge
             label={isWinner ? "VICTORY" : `FINISHED P${playerPos}`}
@@ -143,21 +145,11 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
           marginBottom: "12px",
         }}
       >
-        <Button
-          variant="secondary"
-          size="md"
-          icon={<Home size={18} />}
-          onClick={onMenu}
-        >
+        <Button variant="secondary" size="md" icon={<Home size={18} />} onClick={onMenu}>
           Menu
         </Button>
 
-        <Button
-          variant="secondary"
-          size="md"
-          icon={<RotateCcw size={18} />}
-          onClick={onAgain}
-        >
+        <Button variant="secondary" size="md" icon={<RotateCcw size={18} />} onClick={onAgain}>
           Again
         </Button>
 

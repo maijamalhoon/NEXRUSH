@@ -70,7 +70,8 @@ export const RaceHud: React.FC<RaceHudProps> = ({
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        padding: "env(safe-area-inset-top, 16px) env(safe-area-inset-right, 16px) env(safe-area-inset-bottom, 16px) env(safe-area-inset-left, 16px)",
+        padding:
+          "env(safe-area-inset-top, 16px) env(safe-area-inset-right, 16px) env(safe-area-inset-bottom, 16px) env(safe-area-inset-left, 16px)",
       }}
     >
       {/* Top Bar: Lap, Position, Lap Time, Pause */}
@@ -95,7 +96,14 @@ export const RaceHud: React.FC<RaceHudProps> = ({
               flexDirection: "column",
             }}
           >
-            <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-ui)", fontWeight: 700 }}>
+            <span
+              style={{
+                fontSize: "11px",
+                color: "var(--text-muted)",
+                fontFamily: "var(--font-ui)",
+                fontWeight: 700,
+              }}
+            >
               POS
             </span>
             <span
@@ -108,7 +116,9 @@ export const RaceHud: React.FC<RaceHudProps> = ({
               }}
             >
               {positionNumber}
-              <small style={{ fontSize: "14px", color: "var(--text-muted)", marginLeft: "2px" }}>/{totalCars}</small>
+              <small style={{ fontSize: "14px", color: "var(--text-muted)", marginLeft: "2px" }}>
+                /{totalCars}
+              </small>
             </span>
           </div>
 
@@ -123,7 +133,14 @@ export const RaceHud: React.FC<RaceHudProps> = ({
               flexDirection: "column",
             }}
           >
-            <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-ui)", fontWeight: 700 }}>
+            <span
+              style={{
+                fontSize: "11px",
+                color: "var(--text-muted)",
+                fontFamily: "var(--font-ui)",
+                fontWeight: 700,
+              }}
+            >
               LAP
             </span>
             <span
@@ -136,7 +153,9 @@ export const RaceHud: React.FC<RaceHudProps> = ({
               }}
             >
               {currentLap}
-              <small style={{ fontSize: "14px", color: "var(--text-muted)", marginLeft: "2px" }}>/{raceState.lapsTotal}</small>
+              <small style={{ fontSize: "14px", color: "var(--text-muted)", marginLeft: "2px" }}>
+                /{raceState.lapsTotal}
+              </small>
             </span>
           </div>
         </div>
@@ -187,7 +206,9 @@ export const RaceHud: React.FC<RaceHudProps> = ({
         </div>
 
         {/* Right: Minimap & Pause Button */}
-        <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", pointerEvents: "auto" }}>
+        <div
+          style={{ display: "flex", gap: "10px", alignItems: "flex-start", pointerEvents: "auto" }}
+        >
           <Minimap track={track} cars={allCars} size={105} />
 
           <button
@@ -353,10 +374,24 @@ export const RaceHud: React.FC<RaceHudProps> = ({
               {speedKmh}
             </span>
             <div style={{ display: "flex", flexDirection: "column" }}>
-              <span style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-ui)", fontWeight: 700 }}>
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "var(--text-muted)",
+                  fontFamily: "var(--font-ui)",
+                  fontWeight: 700,
+                }}
+              >
                 KM/H
               </span>
-              <span style={{ fontSize: "13px", color: "var(--accent-primary)", fontFamily: "var(--font-display)", fontWeight: 800 }}>
+              <span
+                style={{
+                  fontSize: "13px",
+                  color: "var(--accent-primary)",
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 800,
+                }}
+              >
                 G {gear}
               </span>
             </div>
@@ -364,7 +399,16 @@ export const RaceHud: React.FC<RaceHudProps> = ({
 
           {/* RUSH Energy Bar */}
           <div style={{ width: "100%", marginTop: "8px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--accent-rush)", fontWeight: 700, marginBottom: "3px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: "10px",
+                color: "var(--accent-rush)",
+                fontWeight: 700,
+                marginBottom: "3px",
+              }}
+            >
               <span style={{ display: "flex", alignItems: "center", gap: "2px" }}>
                 <Zap size={11} fill="var(--accent-rush)" /> RUSH
               </span>

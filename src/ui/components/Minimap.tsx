@@ -41,7 +41,7 @@ export const Minimap: React.FC<MinimapProps> = ({ track, cars, size = 120 }) => 
       const p = track.samples[i].position;
       const sx = toSvgX(p.x);
       const sz = toSvgZ(p.z);
-      path += (i === 0 ? `M ${sx} ${sz}` : ` L ${sx} ${sz}`);
+      path += i === 0 ? `M ${sx} ${sz}` : ` L ${sx} ${sz}`;
     }
     path += " Z";
 

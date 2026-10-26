@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { applyGrassDrag, countdownNumber, crossedStartFinish, driftAngleDegrees, getRacePhase, positiveAngle, TAU, updateBestLap } from "./raceMath";
+import {
+  applyGrassDrag,
+  countdownNumber,
+  crossedStartFinish,
+  driftAngleDegrees,
+  getRacePhase,
+  positiveAngle,
+  TAU,
+  updateBestLap,
+} from "./raceMath";
 
 describe("race math", () => {
   it("normalizes negative angles into one lap", () => {

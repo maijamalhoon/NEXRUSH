@@ -53,7 +53,8 @@ export const CarSelectScreen: React.FC<CarSelectScreenProps> = ({
         padding: "clamp(16px, 4vw, 32px)",
         pointerEvents: "auto",
         userSelect: "none",
-        background: "linear-gradient(180deg, rgba(11, 13, 18, 0.7) 0%, rgba(11, 13, 18, 0.2) 50%, rgba(11, 13, 18, 0.9) 100%)",
+        background:
+          "linear-gradient(180deg, rgba(11, 13, 18, 0.7) 0%, rgba(11, 13, 18, 0.2) 50%, rgba(11, 13, 18, 0.9) 100%)",
       }}
     >
       {/* Top Header */}
@@ -115,7 +116,9 @@ export const CarSelectScreen: React.FC<CarSelectScreenProps> = ({
           }}
         >
           {/* Car Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div
+            style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}
+          >
             <div>
               <div style={{ display: "flex", gap: "6px", marginBottom: "4px" }}>
                 <Badge label={currentCar.class} variant="primary" size="sm" />
@@ -135,24 +138,58 @@ export const CarSelectScreen: React.FC<CarSelectScreenProps> = ({
               </h2>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: "20px", fontWeight: 700, color: "var(--accent-primary)" }}>
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: "20px",
+                  fontWeight: 700,
+                  color: "var(--accent-primary)",
+                }}
+              >
                 {currentCar.topSpeedKmh}
               </div>
-              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>KM/H MAX</div>
+              <div
+                style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}
+              >
+                KM/H MAX
+              </div>
             </div>
           </div>
 
           {/* Stat Bars */}
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <StatBar label="Top Speed" value={currentCar.stats.topSpeed} color="var(--accent-primary)" />
-            <StatBar label="Acceleration" value={currentCar.stats.accel} color="var(--accent-primary)" />
-            <StatBar label="Handling" value={currentCar.stats.handling} color="var(--accent-primary)" />
-            <StatBar label="Rush Rate" value={currentCar.stats.rushRate} color="var(--accent-rush)" />
+            <StatBar
+              label="Top Speed"
+              value={currentCar.stats.topSpeed}
+              color="var(--accent-primary)"
+            />
+            <StatBar
+              label="Acceleration"
+              value={currentCar.stats.accel}
+              color="var(--accent-primary)"
+            />
+            <StatBar
+              label="Handling"
+              value={currentCar.stats.handling}
+              color="var(--accent-primary)"
+            />
+            <StatBar
+              label="Rush Rate"
+              value={currentCar.stats.rushRate}
+              color="var(--accent-rush)"
+            />
           </div>
 
           {/* Color Picker Swatches */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>
+            <span
+              style={{
+                fontSize: "11px",
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                fontWeight: 600,
+              }}
+            >
               Paint Finish
             </span>
             <div style={{ display: "flex", gap: "10px" }}>
@@ -165,7 +202,10 @@ export const CarSelectScreen: React.FC<CarSelectScreenProps> = ({
                     height: "28px",
                     borderRadius: "50%",
                     backgroundColor: colorHex,
-                    border: activeColor === colorHex ? "2px solid #FFFFFF" : "1px solid rgba(255, 255, 255, 0.2)",
+                    border:
+                      activeColor === colorHex
+                        ? "2px solid #FFFFFF"
+                        : "1px solid rgba(255, 255, 255, 0.2)",
                     outline: activeColor === colorHex ? "2px solid var(--accent-primary)" : "none",
                     outlineOffset: "2px",
                     cursor: "pointer",

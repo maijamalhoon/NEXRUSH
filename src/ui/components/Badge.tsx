@@ -6,11 +6,7 @@ export interface BadgeProps {
   size?: "sm" | "md";
 }
 
-export const Badge: React.FC<BadgeProps> = ({
-  label,
-  variant = "muted",
-  size = "md",
-}) => {
+export const Badge: React.FC<BadgeProps> = ({ label, variant = "muted", size = "md" }) => {
   const getColors = () => {
     switch (variant) {
       case "primary":

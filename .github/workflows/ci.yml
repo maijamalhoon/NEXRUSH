@@ -2,9 +2,9 @@ name: NEXRUSH CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 permissions:
   contents: read
@@ -20,9 +20,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-      - name: Install dependencies without audit prompts
+      - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Test racing logic
+      - name: Lint codebase
+        run: npm run lint
+      - name: Typecheck TypeScript
+        run: npm run typecheck
+      - name: Test simulation and logic
         run: npm test
-      - name: Typecheck and production build
+      - name: Production build
         run: npm run build

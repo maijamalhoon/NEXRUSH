@@ -32,7 +32,13 @@ export const StatBar: React.FC<StatBarProps> = ({
       >
         <span>{label}</span>
         {showValue && (
-          <span style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)", fontWeight: 700 }}>
+          <span
+            style={{
+              color: "var(--text-primary)",
+              fontFamily: "var(--font-display)",
+              fontWeight: 700,
+            }}
+          >
             {clamped}
           </span>
         )}

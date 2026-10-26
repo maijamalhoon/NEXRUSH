@@ -6,11 +6,7 @@ interface LogoProps {
   className?: string;
 }
 
-export const Logo: React.FC<LogoProps> = ({
-  size = "md",
-  showWordmark = true,
-  className = "",
-}) => {
+export const Logo: React.FC<LogoProps> = ({ size = "md", showWordmark = true, className = "" }) => {
   const iconSizes = {
     sm: 28,
     md: 40,
@@ -40,20 +36,9 @@ export const Logo: React.FC<LogoProps> = ({
           strokeWidth="2"
         />
         {/* Aerodynamic Forward Chevrons / Stylized N in Volt Lime */}
-        <path
-          d="M14 34L22 14H27L19 34H14Z"
-          fill="#D4FF2A"
-        />
-        <path
-          d="M23 34L31 14H36L28 34H23Z"
-          fill="#D4FF2A"
-          opacity="0.85"
-        />
-        <path
-          d="M18 25L32 17V21L18 29V25Z"
-          fill="#4FD8FF"
-          opacity="0.9"
-        />
+        <path d="M14 34L22 14H27L19 34H14Z" fill="#D4FF2A" />
+        <path d="M23 34L31 14H36L28 34H23Z" fill="#D4FF2A" opacity="0.85" />
+        <path d="M18 25L32 17V21L18 29V25Z" fill="#4FD8FF" opacity="0.9" />
       </svg>
 
       {showWordmark && (

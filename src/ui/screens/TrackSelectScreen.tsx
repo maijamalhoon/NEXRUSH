@@ -43,7 +43,8 @@ export const TrackSelectScreen: React.FC<TrackSelectScreenProps> = ({
         padding: "clamp(16px, 4vw, 32px)",
         pointerEvents: "auto",
         userSelect: "none",
-        background: "linear-gradient(180deg, rgba(11, 13, 18, 0.8) 0%, rgba(11, 13, 18, 0.4) 50%, rgba(11, 13, 18, 0.9) 100%)",
+        background:
+          "linear-gradient(180deg, rgba(11, 13, 18, 0.8) 0%, rgba(11, 13, 18, 0.4) 50%, rgba(11, 13, 18, 0.9) 100%)",
       }}
     >
       {/* Top bar */}
@@ -113,8 +114,8 @@ export const TrackSelectScreen: React.FC<TrackSelectScreenProps> = ({
                 currentTrack.difficulty === "Easy"
                   ? "success"
                   : currentTrack.difficulty === "Hard"
-                  ? "danger"
-                  : "primary"
+                    ? "danger"
+                    : "primary"
               }
             />
             <Badge label={`${currentTrack.lengthMeters} M`} variant="muted" />
@@ -154,8 +155,12 @@ export const TrackSelectScreen: React.FC<TrackSelectScreenProps> = ({
               marginTop: "8px",
             }}
           >
-            <div>Laps: <b style={{ color: "var(--text-primary)" }}>{currentTrack.defaultLaps}</b></div>
-            <div>Width: <b style={{ color: "var(--text-primary)" }}>{currentTrack.roadWidth}m</b></div>
+            <div>
+              Laps: <b style={{ color: "var(--text-primary)" }}>{currentTrack.defaultLaps}</b>
+            </div>
+            <div>
+              Width: <b style={{ color: "var(--text-primary)" }}>{currentTrack.roadWidth}m</b>
+            </div>
           </div>
         </div>
 
@@ -170,12 +175,7 @@ export const TrackSelectScreen: React.FC<TrackSelectScreenProps> = ({
 
       {/* Bottom Confirm */}
       <footer style={{ display: "flex", justifyContent: "flex-end" }}>
-        <Button
-          variant="primary"
-          size="lg"
-          icon={<Check size={20} />}
-          onClick={onConfirm}
-        >
+        <Button variant="primary" size="lg" icon={<Check size={20} />} onClick={onConfirm}>
           Choose Car
         </Button>
       </footer>

@@ -82,18 +82,15 @@ export function resolveCarCollisions(
  * Keeps cars inside track barrier envelope.
  * Returns true if a barrier hit occurred.
  */
-export function resolveTrackBarriers(
-  car: CarSimState,
-  track: TrackSpline
-): boolean {
+export function resolveTrackBarriers(car: CarSimState, track: TrackSpline): boolean {
   const info = track.findNearest(car.position.x, car.position.z, car.lapProgress);
   car.offTrack = info.isOffTrack;
 
   // Maximum outer barrier limit (track width / 2 + 3m run-off)
-  const maxBarrierDist = (track.defaultWidth * 0.5) + 3.2;
+  const maxBarrierDist = track.defaultWidth * 0.5 + 3.2;
 
   if (Math.abs(info.signedDistance) > maxBarrierDist) {
-    const pushBackDist = (Math.abs(info.signedDistance) - maxBarrierDist);
+    const pushBackDist = Math.abs(info.signedDistance) - maxBarrierDist;
     const sign = Math.sign(info.signedDistance);
 
     // Reposition car inside boundary
@@ -104,8 +101,8 @@ export function resolveTrackBarriers(
     // Dampen normal velocity & bounce
     const vn = car.velocity.x * sample.normal.x + car.velocity.z * sample.normal.z;
     if (vn * sign > 0) {
-      car.velocity.x -= (1.35 * vn) * sample.normal.x;
-      car.velocity.z -= (1.35 * vn) * sample.normal.z;
+      car.velocity.x -= 1.35 * vn * sample.normal.x;
+      car.velocity.z -= 1.35 * vn * sample.normal.z;
     }
 
     return true;

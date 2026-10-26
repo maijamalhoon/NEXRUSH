@@ -1,10 +1,10 @@
 export interface DifficultyConfig {
   name: string;
-  speedScale: number;       // speed multiplier on straights
-  corneringGrip: number;    // grip confidence in turns
-  aggression: number;       // desire to overtake / defend
+  speedScale: number; // speed multiplier on straights
+  corneringGrip: number; // grip confidence in turns
+  aggression: number; // desire to overtake / defend
   mistakeFrequency: number; // probability of overshooting a braking zone
-  rubberBanding: boolean;   // subtle catch-up logic
+  rubberBanding: boolean; // subtle catch-up logic
   maxRubberBandCatchup: number;
 }
 

@@ -67,7 +67,7 @@ export function stepVehiclePhysics(
 
   // Velocity components in local car coordinates
   const vf = next.velocity.x * forwardX + next.velocity.z * forwardZ; // forward (m/s)
-  const vl = next.velocity.x * rightX + next.velocity.z * rightZ;     // lateral (m/s)
+  const vl = next.velocity.x * rightX + next.velocity.z * rightZ; // lateral (m/s)
 
   // Surface grip multiplier
   const surfaceGrip = next.offTrack ? 0.42 : 1.0;
@@ -85,7 +85,8 @@ export function stepVehiclePhysics(
   const accelFactor = (spec.acceleration / 100) * 12.0 * (wantsBoost ? 1.6 : 1.0);
 
   // Gears & RPM
-  const gearRatio = spec.gearRatios[Math.max(0, Math.min(spec.gearRatios.length - 1, next.gear - 1))] || 3.0;
+  const gearRatio =
+    spec.gearRatios[Math.max(0, Math.min(spec.gearRatios.length - 1, next.gear - 1))] || 3.0;
   const wheelRpm = (Math.abs(vf) / (2 * Math.PI * 0.33)) * 60;
   let targetRpm = Math.max(IDLE_RPM, wheelRpm * gearRatio * 3.6);
   if (input.throttle > 0 && Math.abs(vf) < 1.0) {
@@ -135,7 +136,11 @@ export function stepVehiclePhysics(
   const maxSteerAngle = (0.75 - speedRatio * 0.45) * (spec.handling / 80);
   let steerInput = input.steer;
 
-  if (config.steeringAssist && Math.abs(next.angularVelocity) > 1.2 && Math.sign(steerInput) !== Math.sign(next.angularVelocity)) {
+  if (
+    config.steeringAssist &&
+    Math.abs(next.angularVelocity) > 1.2 &&
+    Math.sign(steerInput) !== Math.sign(next.angularVelocity)
+  ) {
     steerInput *= 1.15;
   }
 

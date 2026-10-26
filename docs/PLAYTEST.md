@@ -1,51 +1,52 @@
-# NEXRUSH manual playtest checklist
+# NEXRUSH — Quality & Playtest Protocol
 
-Run the automated checks first:
-
+Run automated regression suite first:
 ```bash
-npm install
 npm test
+npm run typecheck
+npm run lint
 npm run build
-npm run dev
 ```
 
-## Race start and timing
+---
 
-- [ ] Wait for the 3–2–1 countdown and confirm the GO cue starts the race.
-- [ ] Confirm session and lap timers begin after GO, not while the engine is loading or during countdown.
-- [ ] Complete a full lap; lap increments once and last-lap/best-lap values are recorded.
-- [ ] Complete a slower lap; best lap remains unchanged. Complete a faster lap; best lap updates.
-- [ ] Press R during a lap; timers/records reset and a new countdown starts.
+## 1. Flow & Screen Navigation
+- [ ] **Splash Screen**: Logo animates smoothly, "Start Engine" unlocks WebAudio context without console errors.
+- [ ] **Main Menu**: Live 3D showcase in background. "Race", "Garage", and "Settings" open their respective screens. "Multiplayer" displays "Soon" badge and remains disabled.
+- [ ] **Circuit Select**: Arrow keys or touch navigation switches between **Neon Metropolis**, **Sunset Coast**, and **Red Rock**. Length, difficulty badge, and 3D preview update.
+- [ ] **Garage**: Carousel switches between all 5 cars (**Apex GT**, **Venom R**, **Spectre**, **Titan RS**, **Mirage EV**). Stat bars update accurately. Color swatches update car body paint.
+- [ ] **Pause Modal**: Pressing Esc, P, or tapping the pause icon halts simulation. "Resume", "Restart", "Settings", and "Main Menu" perform immediate responsive state transitions.
+- [ ] **Results Screen**: Crossing finish line after 3 laps presents podium standings, driver best laps, and "Again" / "Next Track" buttons.
 
-## Driving loop
+---
 
-- [ ] Accelerate, coast, brake, reverse and steer in both directions.
-- [ ] Turning at speed feels responsive without instantly snapping sideways.
-- [ ] Handbrake + steering creates a temporary slip; the drift-angle HUD reacts and settles when released.
-- [ ] Driving off the road reduces speed without making a stopped car roll backwards.
-- [ ] Cross the start/finish line forwards and confirm the lap increments exactly once.
-- [ ] Reverse across the line and confirm it does not increment the lap.
-- [ ] Hit an AI car and confirm contact slows or nudges the player instead of freezing the game.
-- [ ] Use **R** and the on-screen reset button; car, timer, lap and opponents return to their start positions.
+## 2. Vehicle Dynamics & Signature RUSH Mechanic
+- [ ] **Throttle & Shifting**: Engine accelerates forward, shifting up through gears automatically with corresponding RPM engine pitch changes.
+- [ ] **Braking & Reverse**: Holding S / Down Arrow brakes firmly to a stop and engages reverse after stopping.
+- [ ] **Drifting**: Engaging Handbrake (Space / touch Drift) while turning initiates controlled slip. Drift angle is calculated accurately.
+- [ ] **RUSH Accumulation**: Clean drifting at speed builds the Ice Blue RUSH energy meter.
+- [ ] **RUSH Activation**: Pressing Boost (Shift / touch RUSH) with energy available grants immediate speed boost, increases FOV, and expends RUSH meter.
+- [ ] **Off-track Surface**: Leaving track boundaries onto grass/sand reduces grip by ~58% and applies rolling resistance.
 
-## Devices and rendering
+---
 
-- [ ] Try Auto, Performance, Balanced and High quality settings.
-- [ ] Resize the window while driving; the canvas and camera should remain usable.
-- [ ] Switch tabs and return; the game should resume without a large simulation-time jump.
-- [ ] Verify touch accelerate, brake, steering and handbrake on a physical phone.
-- [ ] Check portrait and landscape layouts on a small screen.
-- [ ] Check a desktop Chromium browser and at least one other browser engine.
-- [ ] Test with hardware acceleration disabled and confirm the WebGL fallback message is readable.
+## 3. Spline Tracks & Collision Boundaries
+- [ ] **Track Generation**: 3D asphalt ribbon, red/white curbs, and guardrails form continuous, closed loops with smooth Catmull-Rom curvature.
+- [ ] **Barrier Containment**: Crashing into outer walls pushes vehicle back onto circuit without falling into void.
+- [ ] **AI Opponents**: 3 rival bots follow racing lines, brake for sharp corners, avoid rear-ending the player, and contest race positions.
+- [ ] **Collision Response**: Car-to-car bumper contact applies elastic impulse and separates positions without overlapping or freezing.
 
-## v0.3 scene and adaptive quality
+---
 
-- [ ] Confirm the start gate, car lamps and neon skyline appear in Balanced/High.
-- [ ] Switch to Performance; optional skyline buildings should hide while the road and HUD remain usable.
-- [ ] Switch Performance → Auto: optional scenery should restore only after quality has recovered, not flicker every few seconds.
-- [ ] Drive a full lap with scenery visible and disabled; check that no skyline objects cross into the road.
-- [ ] Open the deployed build and confirm the page title, live HUD and reset control appear.
+## 4. Audio & Game Feel
+- [ ] **Synthesized Engine Sound**: RPM changes seamlessly modulate procedural dual-oscillator pitch and filter cutoff.
+- [ ] **Tire Squeal**: High lateral slip angle triggers band-pass filtered squeal.
+- [ ] **Countdown Chimes**: 3..2..1 produce 440 Hz tones; GO produces an 880 Hz chime.
+- [ ] **Haptics**: Collisions and boost activation trigger subtle vibration on supported Android devices.
 
-## Reporting results
+---
 
-Record the device/browser, quality setting, approximate FPS, visual glitches and exact steps that reproduce an issue. Do not mark a browser or device as supported until it has actually been tested.
+## 5. PWA & Offline Readiness
+- [ ] **Installation**: Browser recognizes Web Manifest and displays install icon in address bar or custom Install button.
+- [ ] **Offline Execution**: Disconnect network in DevTools (Offline mode) and reload; entire game boots and plays without network calls.
+- [ ] **Mobile Safe Area**: On mobile viewports, touch controls respect notch insets and thumb resting zones.

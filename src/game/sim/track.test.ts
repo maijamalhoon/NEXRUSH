@@ -11,7 +11,10 @@ describe("TrackSpline", () => {
     // Check that start and end close smoothly
     const start = track.getAtProgress(0.0);
     const nearEnd = track.getAtProgress(0.999);
-    const dist = Math.hypot(start.position.x - nearEnd.position.x, start.position.z - nearEnd.position.z);
+    const dist = Math.hypot(
+      start.position.x - nearEnd.position.x,
+      start.position.z - nearEnd.position.z
+    );
     expect(dist).toBeLessThan(15);
   });
 
@@ -38,7 +41,10 @@ describe("TrackSpline", () => {
     const slot1 = track.getGridSlot(1);
 
     // Slots should not overlap
-    const dist = Math.hypot(slot0.position.x - slot1.position.x, slot0.position.z - slot1.position.z);
+    const dist = Math.hypot(
+      slot0.position.x - slot1.position.x,
+      slot0.position.z - slot1.position.z
+    );
     expect(dist).toBeGreaterThan(5.0);
     expect(Number.isFinite(slot0.heading)).toBe(true);
   });
