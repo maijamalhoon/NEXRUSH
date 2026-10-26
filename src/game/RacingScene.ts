@@ -1,8 +1,14 @@
 import {
   ArcRotateCamera, Color3, Color4, Engine, HemisphericLight, Mesh,
-  MeshBuilder, PBRMaterial, Scene, StandardMaterial, Vector3
-} from "@babylonjs/core";
+  MeshBuilder, RegisterStandardEngineExtensions, RegisterStandardMaterial,
+  Scene, StandardMaterial, Vector3
+} from "@babylonjs/core/pure";
 import { applyGrassDrag, crossedStartFinish, driftAngleDegrees, positiveAngle, TAU } from "./raceMath";
+
+// Pure imports keep unused Babylon.js systems out of the production bundle.
+// Register only the material and WebGL engine capabilities used by this scene.
+RegisterStandardEngineExtensions();
+RegisterStandardMaterial();
 
 export type QualityMode = "auto" | "low" | "medium" | "high";
 export interface Telemetry {
@@ -297,10 +303,10 @@ export class RacingScene {
   private makeCar(name: string, color: Color3, player: boolean): Mesh {
     const body = MeshBuilder.CreateBox(name, { width: 1.9, height: 0.52, depth: 3.8 }, this.scene);
     body.position.y = 0.65;
-    const paint = new PBRMaterial(name + "-paint", this.scene);
-    paint.albedoColor = color;
-    paint.metallic = 0.68;
-    paint.roughness = 0.3;
+    const paint = new StandardMaterial(name + "-paint", this.scene);
+    paint.diffuseColor = color;
+    paint.specularColor = new Color3(0.72, 0.78, 0.86);
+    paint.specularPower = 64;
     body.material = paint;
     const cabin = MeshBuilder.CreateBox(name + "-canopy", { width: 1.32, height: 0.46, depth: 1.55 }, this.scene);
     cabin.position.set(0, 0.45, -0.15);
