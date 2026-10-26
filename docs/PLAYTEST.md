@@ -13,6 +13,8 @@ npm run dev
 - [ ] Landing page fits desktop, tablet, phone portrait and phone landscape.
 - [ ] Track selection shows all three presets and highlights the selected one.
 - [ ] Garage switches between all five cars and correctly shows owned/locked status.
+- [ ] Garage and tuning screen load an interactive 3D vehicle preview; drag rotates the camera and switching paint/car updates the model.
+- [ ] 3D showroom disposes its render loop and WebGL resources when leaving the screen; no duplicate canvas/render loop after repeated visits.
 - [ ] Unlocking a car deducts credits exactly once; unaffordable purchases are rejected.
 - [ ] Paint can be bought/equipped, with owned paint remaining available.
 - [ ] Engine, handling, nitro and armor upgrades charge the expected price and stop at level five.
@@ -44,6 +46,9 @@ npm run dev
 
 ## Rendering, performance and compatibility
 - [ ] Try Auto, Performance, Balanced and High quality settings.
+- [ ] Racing curbs remain aligned to the road on every track and do not block the driving line.
+- [ ] City lights, desert rocks and harbor containers appear in the correct environment; mobile Auto quality hides optional scenery when FPS drops.
+- [ ] Check vehicle body panels, wheels, windows and lamps from race camera and showroom camera for clipping.
 - [ ] Resize the window while driving; canvas and camera remain usable.
 - [ ] Switch tabs and return; the simulation avoids a large hidden-tab time jump.
 - [ ] Check portrait and landscape layouts on a physical phone.
