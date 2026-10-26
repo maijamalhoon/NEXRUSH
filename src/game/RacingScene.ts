@@ -182,15 +182,9 @@ export class RacingScene {
       opponent.mesh.setEnabled(true);
       opponent.progress = opponent.startProgress;
       const t = Math.PI / 2 + opponent.progress;
-      const nxRaw = Math.cos(t) / this.rx;
-      const nzRaw = Math.sin(t) / this.rz;
-      const nLength = Math.hypot(nxRaw, nzRaw);
-      opponent.mesh.position.set(
-        this.rx * Math.cos(t) + nxRaw / nLength * opponent.lane,
-        0.65,
-        this.rz * Math.sin(t) + nzRaw / nLength * opponent.lane
-      );
-      opponent.mesh.rotation.y = Math.atan2(-this.rx * Math.sin(t), this.rz * Math.cos(t));
+      const point = this.trackPosition(t, opponent.lane);
+      opponent.mesh.position.set(point.x, 0.65, point.z);
+      opponent.mesh.rotation.y = this.trackHeading(t);
     }
     this.publishTelemetry(false);
   }
@@ -302,9 +296,8 @@ export class RacingScene {
     this.car.rotation.y = this.heading;
 
     const trackAngle = Math.atan2(this.car.position.z / this.rz, this.car.position.x / this.rx);
-    const nearestX = this.rx * Math.cos(trackAngle);
-    const nearestZ = this.rz * Math.sin(trackAngle);
-    const distanceFromCentre = Math.hypot(this.car.position.x - nearestX, this.car.position.z - nearestZ);
+    const nearest = this.trackPoint(trackAngle);
+    const distanceFromCentre = Math.hypot(this.car.position.x - nearest.x, this.car.position.z - nearest.z);
     this.offTrack = distanceFromCentre > this.roadHalfWidth - 1.0;
     if (this.offTrack) {
       // Grass should slow the car down, never accelerate a stopped car backwards.
@@ -337,19 +330,9 @@ export class RacingScene {
       if (opponent.destroyed) continue;
       opponent.progress += (opponent.speed / 3.6 / 29) * dt;
       const t = Math.PI / 2 + opponent.progress;
-      const nxRaw = Math.cos(t) / this.rx;
-      const nzRaw = Math.sin(t) / this.rz;
-      const nLength = Math.hypot(nxRaw, nzRaw);
-      const nx = nxRaw / nLength;
-      const nz = nzRaw / nLength;
-      opponent.mesh.position.set(
-        this.rx * Math.cos(t) + nx * opponent.lane,
-        0.65,
-        this.rz * Math.sin(t) + nz * opponent.lane
-      );
-      const dx = -this.rx * Math.sin(t);
-      const dz = this.rz * Math.cos(t);
-      opponent.mesh.rotation.y = Math.atan2(dx, dz);
+      const point = this.trackPosition(t, opponent.lane);
+      opponent.mesh.position.set(point.x, 0.65, point.z);
+      opponent.mesh.rotation.y = this.trackHeading(t);
       for (const wheel of opponent.wheels) wheel.rotation.x += opponent.speed * dt / 3.6;
       const dist = Math.hypot(this.car.position.x - opponent.mesh.position.x, this.car.position.z - opponent.mesh.position.z);
       if (dist < 2.7 && this.collisionCooldown === 0) {
@@ -459,6 +442,38 @@ export class RacingScene {
     return body;
   }
 
+  private trackPoint(t: number): { x: number; z: number } {
+    const isDune = this.setup.track.id === "dune-canyon";
+    const isHarbor = this.setup.track.id === "harbor-run";
+    const warpX = isDune ? 0.16 : isHarbor ? -0.12 : 0;
+    const warpZ = isDune ? 0.07 : isHarbor ? 0.15 : 0;
+    return {
+      x: this.rx * (Math.cos(t) + warpX * Math.sin(2 * t)),
+      z: this.rz * (Math.sin(t) + warpZ * Math.sin(2 * t))
+    };
+  }
+
+  private trackNormal(t: number): { x: number; z: number } {
+    const before = this.trackPoint(t - 0.001);
+    const after = this.trackPoint(t + 0.001);
+    const dx = after.x - before.x;
+    const dz = after.z - before.z;
+    const length = Math.hypot(dx, dz) || 1;
+    return { x: dz / length, z: -dx / length };
+  }
+
+  private trackPosition(t: number, laneOffset = 0): { x: number; z: number } {
+    const point = this.trackPoint(t);
+    const normal = this.trackNormal(t);
+    return { x: point.x + normal.x * laneOffset, z: point.z + normal.z * laneOffset };
+  }
+
+  private trackHeading(t: number): number {
+    const before = this.trackPoint(t - 0.001);
+    const after = this.trackPoint(t + 0.001);
+    return Math.atan2(after.x - before.x, after.z - before.z);
+  }
+
   private makeTrack() {
     const ground = MeshBuilder.CreateGround("arena-ground", { width: 180, height: 150 }, this.scene);
     const groundMat = new StandardMaterial("ground-mat", this.scene);
@@ -471,15 +486,10 @@ export class RacingScene {
     const segments = 112;
     for (let i = 0; i < segments; i++) {
       const t = i / segments * TAU;
-      const nxRaw = Math.cos(t) / this.rx;
-      const nzRaw = Math.sin(t) / this.rz;
-      const normalLength = Math.hypot(nxRaw, nzRaw);
-      const nx = nxRaw / normalLength;
-      const nz = nzRaw / normalLength;
-      const cx = this.rx * Math.cos(t);
-      const cz = this.rz * Math.sin(t);
-      inner.push(new Vector3(cx - nx * this.roadHalfWidth, 0.02, cz - nz * this.roadHalfWidth));
-      outer.push(new Vector3(cx + nx * this.roadHalfWidth, 0.02, cz + nz * this.roadHalfWidth));
+      const center = this.trackPoint(t);
+      const normal = this.trackNormal(t);
+      inner.push(new Vector3(center.x - normal.x * this.roadHalfWidth, 0.02, center.z - normal.z * this.roadHalfWidth));
+      outer.push(new Vector3(center.x + normal.x * this.roadHalfWidth, 0.02, center.z + normal.z * this.roadHalfWidth));
     }
 
     const road = MeshBuilder.CreateRibbon("closed-circuit", {
@@ -503,8 +513,9 @@ export class RacingScene {
     for (let i = 0; i < 48; i++) {
       const t = i / 48 * TAU;
       const dash = i === 0 ? dashTemplate : dashTemplate.createInstance("lane-dash-" + i);
-      dash.position.set(this.rx * Math.cos(t), 0.045, this.rz * Math.sin(t));
-      dash.rotation.y = Math.atan2(-this.rx * Math.sin(t), this.rz * Math.cos(t));
+      const center = this.trackPoint(t);
+      dash.position.set(center.x, 0.045, center.z);
+      dash.rotation.y = this.trackHeading(t);
     }
 
     const finishMat = new StandardMaterial("start-line-mat", this.scene);
@@ -522,7 +533,8 @@ export class RacingScene {
     for (let i = 0; i < 16; i++) {
       const t = i / 16 * TAU;
       const p = i === 0 ? beaconTemplate : beaconTemplate.createInstance("track-beacon-" + i);
-      p.position.set((this.rx + 11) * Math.cos(t), 0.75, (this.rz + 10) * Math.sin(t));
+      const point = this.trackPosition(t, 11);
+      p.position.set(point.x, 0.75, point.z);
     }
   }
 
@@ -621,15 +633,9 @@ export class RacingScene {
     this.opponents = configs.map((config, i) => {
       const mesh = this.makeCar("opponent-" + (i + 1), config.color, false);
       const t = Math.PI / 2 + config.progress;
-      const nxRaw = Math.cos(t) / this.rx;
-      const nzRaw = Math.sin(t) / this.rz;
-      const nLength = Math.hypot(nxRaw, nzRaw);
-      mesh.position.set(
-        this.rx * Math.cos(t) + nxRaw / nLength * config.lane,
-        0.65,
-        this.rz * Math.sin(t) + nzRaw / nLength * config.lane
-      );
-      mesh.rotation.y = Math.atan2(-this.rx * Math.sin(t), this.rz * Math.cos(t));
+      const point = this.trackPosition(t, config.lane);
+      mesh.position.set(point.x, 0.65, point.z);
+      mesh.rotation.y = this.trackHeading(t);
       // The helper only registers player wheels; gather the opponent's four wheels by name.
       const wheels = this.scene.meshes.filter(m => m.name === "opponent-" + (i + 1) + "-wheel") as Mesh[];
       return { mesh, progress: config.progress, startProgress: config.progress, speed: config.speed, lane: config.lane, wheels, destroyed: false };
