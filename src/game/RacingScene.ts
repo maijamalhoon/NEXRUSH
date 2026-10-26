@@ -349,9 +349,11 @@ export class RacingScene {
 
     for (const opponent of this.opponents) {
       if (opponent.destroyed) continue;
-      opponent.progress += (opponent.speed / 3.6 / 29) * dt;
+      const paceVariation = Math.sin(opponent.progress * 1.6 + opponent.startProgress * 5) * 4.5;
+      opponent.progress += ((opponent.speed + paceVariation) / 3.6 / 29) * dt;
       const t = Math.PI / 2 + opponent.progress;
-      const point = this.trackPosition(t, opponent.lane);
+      const laneChange = Math.sin(opponent.progress * 0.72 + opponent.startProgress * 7) * 0.72;
+      const point = this.trackPosition(t, opponent.lane + laneChange);
       opponent.mesh.position.set(point.x, 0.65, point.z);
       opponent.mesh.rotation.y = this.trackHeading(t);
       for (const wheel of opponent.wheels) wheel.rotation.x += opponent.speed * dt / 3.6;
@@ -685,11 +687,13 @@ export class RacingScene {
   }
 
   private makeOpponents() {
-    const aiScale = this.setup.difficulty === "easy" ? 0.78 : this.setup.difficulty === "hard" ? 1.13 : 1;
+    // AI pace is intentionally close to a stock car's race pace so the player must
+    // use braking, clean lines and nitro instead of winning by top-speed alone.
+    const aiScale = this.setup.difficulty === "easy" ? 0.86 : this.setup.difficulty === "hard" ? 1.1 : 1;
     const configs = [
-      { progress: 0.24, speed: 116 * aiScale, lane: -2.8, color: new Color3(0.04, 0.3, 0.92) },
-      { progress: 0.53, speed: 126 * aiScale, lane: 0, color: new Color3(0.92, 0.52, 0.035) },
-      { progress: 0.84, speed: 108 * aiScale, lane: 2.8, color: new Color3(0.12, 0.75, 0.42) }
+      { progress: 0.24, speed: 178 * aiScale, lane: -2.8, color: new Color3(0.04, 0.3, 0.92) },
+      { progress: 0.53, speed: 190 * aiScale, lane: 0, color: new Color3(0.92, 0.52, 0.035) },
+      { progress: 0.84, speed: 170 * aiScale, lane: 2.8, color: new Color3(0.12, 0.75, 0.42) }
     ];
     this.opponents = configs.map((config, i) => {
       const mesh = this.makeCar("opponent-" + (i + 1), config.color, false);
