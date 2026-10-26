@@ -273,9 +273,9 @@ export class RacingScene {
     roadMat.specularColor = new Color3(0.16, 0.18, 0.22);
     road.material = roadMat;
 
-    const outerLine = MeshBuilder.CreateLines("outer-neon-edge", { points: outer, close: true }, this.scene);
+    const outerLine = MeshBuilder.CreateLines("outer-neon-edge", { points: [...outer, outer[0]] }, this.scene);
     outerLine.color = new Color3(0.05, 0.8, 0.98);
-    const innerLine = MeshBuilder.CreateLines("inner-neon-edge", { points: inner, close: true }, this.scene);
+    const innerLine = MeshBuilder.CreateLines("inner-neon-edge", { points: [...inner, inner[0]] }, this.scene);
     innerLine.color = new Color3(0.95, 0.035, 0.3);
 
     const dashMat = new StandardMaterial("lane-markers", this.scene);
