@@ -69,7 +69,7 @@ export class RacingScene {
     this.camera.upperRadiusLimit = 17;
     this.camera.inputs.clear();
     this.car = this.makeCar("player-car", new Color3(0.76, 0.035, 0.12), true);
-    this.car.position.set(0, 0, RZ);
+    this.car.position.set(0, 0.65, RZ);
     this.makeTrack();
     this.makeWorld();
     this.makeOpponents();
@@ -175,7 +175,7 @@ export class RacingScene {
     for (const opponent of this.opponents) {
       opponent.progress += (opponent.speed / 3.6 / 29) * dt;
       const t = Math.PI / 2 + opponent.progress;
-      opponent.mesh.position.set(RX * Math.cos(t), 0, RZ * Math.sin(t));
+      opponent.mesh.position.set(RX * Math.cos(t), 0.65, RZ * Math.sin(t));
       const dx = -RX * Math.sin(t);
       const dz = RZ * Math.cos(t);
       opponent.mesh.rotation.y = Math.atan2(dx, dz);
@@ -217,7 +217,7 @@ export class RacingScene {
     paint.roughness = 0.3;
     body.material = paint;
     const cabin = MeshBuilder.CreateBox(name + "-canopy", { width: 1.32, height: 0.46, depth: 1.55 }, this.scene);
-    cabin.position.set(0, 1.1, -0.15);
+    cabin.position.set(0, 0.45, -0.15);
     cabin.parent = body;
     const glass = new StandardMaterial(name + "-glass", this.scene);
     glass.diffuseColor = new Color3(0.035, 0.12, 0.18);
@@ -229,13 +229,13 @@ export class RacingScene {
     for (const x of [-0.98, 0.98]) for (const z of [-1.2, 1.2]) {
       const w = MeshBuilder.CreateCylinder(name + "-wheel", { diameter: 0.78, height: 0.32, tessellation: 10 }, this.scene);
       w.rotation.z = Math.PI / 2;
-      w.position.set(x, 0.38, z);
+      w.position.set(x, -0.25, z);
       w.material = rubber;
       w.parent = body;
       targetWheels.push(w);
     }
     const spoiler = MeshBuilder.CreateBox(name + "-spoiler", { width: 1.75, height: 0.08, depth: 0.28 }, this.scene);
-    spoiler.position.set(0, 0.5, -1.6);
+    spoiler.position.set(0, -0.15, -1.6);
     spoiler.parent = body;
     return body;
   }
