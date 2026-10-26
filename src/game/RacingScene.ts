@@ -249,7 +249,6 @@ export class RacingScene {
 
     const inner: Vector3[] = [];
     const outer: Vector3[] = [];
-    const centre: Vector3[] = [];
     const segments = 112;
     for (let i = 0; i < segments; i++) {
       const t = i / segments * TAU;
@@ -260,7 +259,6 @@ export class RacingScene {
       const nz = nzRaw / normalLength;
       const cx = RX * Math.cos(t);
       const cz = RZ * Math.sin(t);
-      centre.push(new Vector3(cx, 0.025, cz));
       inner.push(new Vector3(cx - nx * ROAD_HALF_WIDTH, 0.02, cz - nz * ROAD_HALF_WIDTH));
       outer.push(new Vector3(cx + nx * ROAD_HALF_WIDTH, 0.02, cz + nz * ROAD_HALF_WIDTH));
     }
