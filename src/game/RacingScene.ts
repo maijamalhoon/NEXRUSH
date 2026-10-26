@@ -122,6 +122,9 @@ export class RacingScene {
     this.lateralVelocity = 0;
     this.heading = -Math.PI / 2;
     this.elapsed = 0;
+    this.lastHud = 0;
+    this.keys.clear();
+    this.controls.clear();
     this.lap = 1;
     this.lapProgress = 0;
     this.lastProgress = 0;
@@ -154,6 +157,11 @@ export class RacingScene {
   }
 
   private monitor() {
+    if (document.hidden) {
+      this.fpsFrames = 0;
+      this.fpsStart = performance.now();
+      return;
+    }
     this.fpsFrames++;
     const now = performance.now();
     if (now - this.fpsStart < 1800) return;
