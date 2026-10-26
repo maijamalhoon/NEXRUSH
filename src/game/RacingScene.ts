@@ -2,6 +2,7 @@ import {
   ArcRotateCamera, Color3, Color4, Engine, HemisphericLight, Mesh,
   MeshBuilder, PBRMaterial, Scene, StandardMaterial, Vector3
 } from "@babylonjs/core";
+import { applyGrassDrag, crossedStartFinish, driftAngleDegrees, positiveAngle, TAU } from "./raceMath";
 
 export type QualityMode = "auto" | "low" | "medium" | "high";
 export interface Telemetry {
@@ -21,9 +22,7 @@ const scales = { low: 0.62, medium: 0.8, high: 1 };
 const RX = 34;
 const RZ = 22;
 const ROAD_HALF_WIDTH = 7.5;
-const TAU = Math.PI * 2;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
-const positiveAngle = (angle: number) => ((angle % TAU) + TAU) % TAU;
 
 export class RacingScene {
   private engine: Engine;
@@ -216,14 +215,14 @@ export class RacingScene {
     this.offTrack = distanceFromCentre > ROAD_HALF_WIDTH - 1.0;
     if (this.offTrack) {
       // Grass should slow the car down, never accelerate a stopped car backwards.
-      this.speed *= Math.exp(-2.5 * dt);
+      this.speed = applyGrassDrag(this.speed, dt);
       this.lateralVelocity *= Math.exp(-4 * dt);
     }
 
     // Complete a lap only when crossing the line in the forward race direction.
     const previousProgress = this.lastProgress;
     this.lapProgress = positiveAngle(trackAngle - Math.PI / 2);
-    if (this.speed > 0 && previousProgress > TAU - 0.12 && this.lapProgress < 0.12) this.lap++;
+    if (crossedStartFinish(previousProgress, this.lapProgress, this.speed)) this.lap++;
     this.lastProgress = this.lapProgress;
 
     for (const opponent of this.opponents) {
@@ -266,7 +265,7 @@ export class RacingScene {
         gear: Math.max(1, Math.min(6, Math.floor(Math.max(0, this.speed) / 38) + 1)),
         rpm: 900 + Math.abs(this.speed) % 38 * 165 + (accel ? 900 : 0),
         elapsed: this.elapsed, lap: this.lap, position, offTrack: this.offTrack,
-        driftAngle: Math.round(Math.atan2(this.lateralVelocity, Math.max(3, Math.abs(this.speed) / 3.6)) * 180 / Math.PI)
+        driftAngle: driftAngleDegrees(this.lateralVelocity, this.speed)
       });
     }
   }
