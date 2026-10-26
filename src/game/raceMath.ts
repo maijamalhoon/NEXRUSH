@@ -1,4 +1,5 @@
 export const TAU = Math.PI * 2;
+export const TOTAL_LAPS = 3;
 
 export function positiveAngle(angle: number): number {
   return ((angle % TAU) + TAU) % TAU;
@@ -20,12 +21,18 @@ export function driftAngleDegrees(lateralVelocity: number, speedKmh: number): nu
   return Math.round(Math.atan2(lateralVelocity, forwardSpeed) * 180 / Math.PI);
 }
 
-export type RacePhase = "COUNTDOWN" | "GO" | "RACING";
+export type RacePhase = "COUNTDOWN" | "GO" | "RACING" | "FINISHED";
 
 /** Converts race timers into a stable HUD phase. */
-export function getRacePhase(raceStarted: boolean, goFlashRemaining: number): RacePhase {
+export function getRacePhase(raceStarted: boolean, goFlashRemaining: number, raceFinished = false): RacePhase {
   if (!raceStarted) return "COUNTDOWN";
+  if (raceFinished) return "FINISHED";
   return goFlashRemaining > 0 ? "GO" : "RACING";
+}
+
+/** The player finishes once the current numbered lap is completed. */
+export function isFinalLap(currentLap: number, totalLaps = TOTAL_LAPS): boolean {
+  return totalLaps > 0 && currentLap >= totalLaps;
 }
 
 /** Converts remaining countdown seconds to the visible 3, 2, 1 sequence. */
