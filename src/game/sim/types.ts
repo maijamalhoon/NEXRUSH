@@ -97,6 +97,7 @@ export interface TrackData {
   defaultLaps: number;
   points: TrackPoint[];
   theme: "city_night" | "coastal_sunset" | "desert_industrial";
+  weather?: "sunny_clouds" | "sunset" | "overcast_rain";
   ambientColor: string;
   skyGradient: [string, string];
   fogColor: string;

@@ -114,9 +114,26 @@ export class SceneManager {
   public loadTrack(track: TrackSpline): void {
     this.trackRenderer.buildTrack(track);
 
-    // Update scene fog and lighting according to track theme
+    // Update scene fog and lighting according to track theme and weather
     const theme = track.data.theme;
-    if (theme === "city_night") {
+    const weather = track.data.weather || "sunny_clouds";
+
+    if (weather === "sunny_clouds" || (theme === "coastal_sunset" && weather !== "sunset")) {
+      // Crisp California daylight with soft drifting cumulus clouds (Reference Photo look)
+      this.scene.clearColor = new Color4(0.48, 0.68, 0.90, 1);
+      this.scene.fogMode = Scene.FOGMODE_LINEAR;
+      this.scene.fogStart = 250.0;
+      this.scene.fogEnd = 1400.0;
+      this.scene.fogColor = new Color3(0.72, 0.84, 0.96);
+
+      this.hemiLight.intensity = 1.25;
+      this.hemiLight.diffuse = new Color3(0.95, 0.98, 1.0);
+      this.hemiLight.groundColor = new Color3(0.32, 0.35, 0.40);
+
+      this.dirLight.intensity = 1.65;
+      this.dirLight.direction = new Vector3(-0.55, -1.2, -0.65);
+      this.dirLight.diffuse = new Color3(1.0, 0.98, 0.92);
+    } else if (theme === "city_night") {
       this.scene.clearColor = new Color4(0.06, 0.08, 0.14, 1);
       this.scene.fogMode = Scene.FOGMODE_LINEAR;
       this.scene.fogStart = 150.0;
@@ -218,6 +235,9 @@ export class SceneManager {
         this.carRenderer.updateCar(car);
       }
     }
+
+    // Update track dynamic clouds and water ripples
+    this.trackRenderer.update(dt);
 
     this.scene.render();
   }

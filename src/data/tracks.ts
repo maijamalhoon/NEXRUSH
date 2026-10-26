@@ -13,9 +13,10 @@ export const TRACKS: TrackData[] = [
     defaultLaps: 2,
     roadWidth: 19.0,
     theme: "coastal_sunset",
-    ambientColor: "#221318",
-    fogColor: "#1d1016",
-    skyGradient: ["#2d1724", "#773934"],
+    weather: "sunny_clouds",
+    ambientColor: "#202838",
+    fogColor: "#d8e4f0",
+    skyGradient: ["#1c4a85", "#7cb4e8"],
     points: [
       { x: 0, y: 0, z: -450 },
       { x: 180, y: 0, z: -450 },

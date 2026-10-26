@@ -9,6 +9,9 @@ import type { TrackSpline } from "../sim/track";
 export class TrackRenderer {
   private meshes: Mesh[] = [];
   private materials: StandardMaterial[] = [];
+  private clouds: Mesh[] = [];
+  private waterMesh: Mesh | null = null;
+  private animTime = 0;
 
   constructor(private scene: Scene) {}
 
@@ -20,25 +23,36 @@ export class TrackRenderer {
     if (n < 4) return;
 
     const halfWidth = track.defaultWidth * 0.5;
+    const weather = track.data.weather || "sunny_clouds";
 
-    // 1. Build Sky Dome
+    // 1. Sky Dome & Dynamic 3D Clouds
     this.buildSkyDome(track);
+    this.buildClouds(weather);
 
-    // 2. Road & Markings Paths
+    // 2. Paths for 4-Lane Highway & Markings
     const leftPath: Vector3[] = [];
     const rightPath: Vector3[] = [];
+
+    // Road markings
     const centerLeftPath: Vector3[] = [];
     const centerRightPath: Vector3[] = [];
+    const laneDivL_Left: Vector3[] = [];
+    const laneDivL_Right: Vector3[] = [];
+    const laneDivR_Left: Vector3[] = [];
+    const laneDivR_Right: Vector3[] = [];
+
     const leftEdgeInner: Vector3[] = [];
     const leftEdgeOuter: Vector3[] = [];
     const rightEdgeInner: Vector3[] = [];
     const rightEdgeOuter: Vector3[] = [];
 
+    // Curbs
     const curbLeftInner: Vector3[] = [];
     const curbLeftOuter: Vector3[] = [];
     const curbRightInner: Vector3[] = [];
     const curbRightOuter: Vector3[] = [];
 
+    // Concrete Barriers
     const barrierLeftBase: Vector3[] = [];
     const barrierLeftTop: Vector3[] = [];
     const barrierRightBase: Vector3[] = [];
@@ -50,7 +64,7 @@ export class TrackRenderer {
       const nx = s.normal.x;
       const nz = s.normal.z;
 
-      // Asphalt edges
+      // Roadway asphalt edges
       leftPath.push(new Vector3(p.x - nx * halfWidth, p.y + 0.02, p.z - nz * halfWidth));
       rightPath.push(new Vector3(p.x + nx * halfWidth, p.y + 0.02, p.z + nz * halfWidth));
 
@@ -58,85 +72,117 @@ export class TrackRenderer {
       centerLeftPath.push(new Vector3(p.x - nx * 0.12, p.y + 0.04, p.z - nz * 0.12));
       centerRightPath.push(new Vector3(p.x + nx * 0.12, p.y + 0.04, p.z + nz * 0.12));
 
-      // White edge lines
-      leftEdgeInner.push(new Vector3(p.x - nx * (halfWidth - 0.35), p.y + 0.04, p.z - nz * (halfWidth - 0.35)));
-      leftEdgeOuter.push(new Vector3(p.x - nx * (halfWidth - 0.15), p.y + 0.04, p.z - nz * (halfWidth - 0.15)));
+      // Lane dividers (4-lane highway: inner left and inner right)
+      const laneOffset = halfWidth * 0.5;
+      laneDivL_Left.push(new Vector3(p.x - nx * (laneOffset + 0.08), p.y + 0.038, p.z - nz * (laneOffset + 0.08)));
+      laneDivL_Right.push(new Vector3(p.x - nx * (laneOffset - 0.08), p.y + 0.038, p.z - nz * (laneOffset - 0.08)));
 
-      rightEdgeInner.push(new Vector3(p.x + nx * (halfWidth - 0.15), p.y + 0.04, p.z + nz * (halfWidth - 0.15)));
-      rightEdgeOuter.push(new Vector3(p.x + nx * (halfWidth - 0.35), p.y + 0.04, p.z + nz * (halfWidth - 0.35)));
+      laneDivR_Left.push(new Vector3(p.x + nx * (laneOffset - 0.08), p.y + 0.038, p.z + nz * (laneOffset - 0.08)));
+      laneDivR_Right.push(new Vector3(p.x + nx * (laneOffset + 0.08), p.y + 0.038, p.z + nz * (laneOffset + 0.08)));
 
-      // Raised red/white curbs
+      // Solid white outer edge lines
+      leftEdgeInner.push(new Vector3(p.x - nx * (halfWidth - 0.40), p.y + 0.04, p.z - nz * (halfWidth - 0.40)));
+      leftEdgeOuter.push(new Vector3(p.x - nx * (halfWidth - 0.16), p.y + 0.04, p.z - nz * (halfWidth - 0.16)));
+
+      rightEdgeInner.push(new Vector3(p.x + nx * (halfWidth - 0.16), p.y + 0.04, p.z + nz * (halfWidth - 0.16)));
+      rightEdgeOuter.push(new Vector3(p.x + nx * (halfWidth - 0.40), p.y + 0.04, p.z + nz * (halfWidth - 0.40)));
+
+      // Red & White Rumble Curbs
       curbLeftInner.push(new Vector3(p.x - nx * halfWidth, p.y + 0.08, p.z - nz * halfWidth));
-      curbLeftOuter.push(new Vector3(p.x - nx * (halfWidth + 0.9), p.y + 0.14, p.z - nz * (halfWidth + 0.9)));
+      curbLeftOuter.push(new Vector3(p.x - nx * (halfWidth + 1.1), p.y + 0.15, p.z - nz * (halfWidth + 1.1)));
 
       curbRightInner.push(new Vector3(p.x + nx * halfWidth, p.y + 0.08, p.z + nz * halfWidth));
-      curbRightOuter.push(new Vector3(p.x + nx * (halfWidth + 0.9), p.y + 0.14, p.z + nz * (halfWidth + 0.9)));
+      curbRightOuter.push(new Vector3(p.x + nx * (halfWidth + 1.1), p.y + 0.15, p.z + nz * (halfWidth + 1.1)));
 
-      // Metallic crash barriers
-      barrierLeftBase.push(new Vector3(p.x - nx * (halfWidth + 1.4), p.y + 0.1, p.z - nz * (halfWidth + 1.4)));
-      barrierLeftTop.push(new Vector3(p.x - nx * (halfWidth + 1.4), p.y + 0.95, p.z - nz * (halfWidth + 1.4)));
+      // Concrete Jersey Retaining Barriers
+      barrierLeftBase.push(new Vector3(p.x - nx * (halfWidth + 1.5), p.y + 0.1, p.z - nz * (halfWidth + 1.5)));
+      barrierLeftTop.push(new Vector3(p.x - nx * (halfWidth + 1.5), p.y + 1.05, p.z - nz * (halfWidth + 1.5)));
 
-      barrierRightBase.push(new Vector3(p.x + nx * (halfWidth + 1.4), p.y + 0.1, p.z + nz * (halfWidth + 1.4)));
-      barrierRightTop.push(new Vector3(p.x + nx * (halfWidth + 1.4), p.y + 0.95, p.z + nz * (halfWidth + 1.4)));
+      barrierRightBase.push(new Vector3(p.x + nx * (halfWidth + 1.5), p.y + 0.1, p.z + nz * (halfWidth + 1.5)));
+      barrierRightTop.push(new Vector3(p.x + nx * (halfWidth + 1.5), p.y + 1.05, p.z + nz * (halfWidth + 1.5)));
     }
 
-    // Close loops
+    // Connect loops
     leftPath.push(leftPath[0]);
     rightPath.push(rightPath[0]);
     centerLeftPath.push(centerLeftPath[0]);
     centerRightPath.push(centerRightPath[0]);
+    laneDivL_Left.push(laneDivL_Left[0]);
+    laneDivL_Right.push(laneDivL_Right[0]);
+    laneDivR_Left.push(laneDivR_Left[0]);
+    laneDivR_Right.push(laneDivR_Right[0]);
+
     leftEdgeInner.push(leftEdgeInner[0]);
     leftEdgeOuter.push(leftEdgeOuter[0]);
     rightEdgeInner.push(rightEdgeInner[0]);
     rightEdgeOuter.push(rightEdgeOuter[0]);
+
     curbLeftInner.push(curbLeftInner[0]);
     curbLeftOuter.push(curbLeftOuter[0]);
     curbRightInner.push(curbRightInner[0]);
     curbRightOuter.push(curbRightOuter[0]);
+
     barrierLeftBase.push(barrierLeftBase[0]);
     barrierLeftTop.push(barrierLeftTop[0]);
     barrierRightBase.push(barrierRightBase[0]);
     barrierRightTop.push(barrierRightTop[0]);
 
-    // --- Road Surface ---
+    // --- 1. Realistic Asphalt Road Ribbon ---
     const road = MeshBuilder.CreateRibbon(
       "track_road",
       { pathArray: [leftPath, rightPath], closeArray: false, sideOrientation: Mesh.DOUBLESIDE },
       this.scene
     );
     const roadMat = new StandardMaterial("roadMat", this.scene);
-    roadMat.diffuseColor = new Color3(0.09, 0.1, 0.13);
-    roadMat.specularColor = new Color3(0.3, 0.32, 0.38);
-    roadMat.specularPower = 32;
+    roadMat.diffuseColor = new Color3(0.12, 0.13, 0.16); // High-grade dark asphalt
+    roadMat.specularColor = new Color3(0.48, 0.52, 0.60); // Realistic road sheen reflecting sunlight
+    roadMat.specularPower = 36;
     road.material = roadMat;
     this.meshes.push(road);
     this.materials.push(roadMat);
 
-    // --- Centerline Ribbon ---
+    // --- 2. Yellow Centerline Ribbon ---
     const centerLine = MeshBuilder.CreateRibbon(
       "centerLine",
       { pathArray: [centerLeftPath, centerRightPath], closeArray: false },
       this.scene
     );
     const centerMat = new StandardMaterial("centerMat", this.scene);
-    centerMat.diffuseColor = new Color3(0.96, 0.82, 0.18); // Racing yellow
-    centerMat.emissiveColor = new Color3(0.4, 0.32, 0.05);
+    centerMat.diffuseColor = new Color3(0.96, 0.82, 0.18);
+    centerMat.emissiveColor = new Color3(0.35, 0.28, 0.05);
     centerLine.material = centerMat;
     this.meshes.push(centerLine);
     this.materials.push(centerMat);
 
-    // --- White Edge Lines ---
-    const edgeMat = new StandardMaterial("edgeMat", this.scene);
-    edgeMat.diffuseColor = new Color3(0.92, 0.94, 0.98);
-    edgeMat.emissiveColor = new Color3(0.25, 0.25, 0.28);
-    this.materials.push(edgeMat);
+    // --- 3. White Lane Divider Ribbons (4-Lane Highway) ---
+    const laneDivMat = new StandardMaterial("laneDivMat", this.scene);
+    laneDivMat.diffuseColor = new Color3(0.92, 0.94, 0.98);
+    laneDivMat.emissiveColor = new Color3(0.2, 0.22, 0.25);
+    this.materials.push(laneDivMat);
 
+    const laneDivL = MeshBuilder.CreateRibbon(
+      "laneDivL",
+      { pathArray: [laneDivL_Left, laneDivL_Right], closeArray: false },
+      this.scene
+    );
+    laneDivL.material = laneDivMat;
+    this.meshes.push(laneDivL);
+
+    const laneDivR = MeshBuilder.CreateRibbon(
+      "laneDivR",
+      { pathArray: [laneDivR_Left, laneDivR_Right], closeArray: false },
+      this.scene
+    );
+    laneDivR.material = laneDivMat;
+    this.meshes.push(laneDivR);
+
+    // --- 4. Solid White Edge Lines ---
     const edgeL = MeshBuilder.CreateRibbon(
       "edgeL",
       { pathArray: [leftEdgeInner, leftEdgeOuter], closeArray: false },
       this.scene
     );
-    edgeL.material = edgeMat;
+    edgeL.material = laneDivMat;
     this.meshes.push(edgeL);
 
     const edgeR = MeshBuilder.CreateRibbon(
@@ -144,13 +190,13 @@ export class TrackRenderer {
       { pathArray: [rightEdgeInner, rightEdgeOuter], closeArray: false },
       this.scene
     );
-    edgeR.material = edgeMat;
+    edgeR.material = laneDivMat;
     this.meshes.push(edgeR);
 
-    // --- Left & Right Curbs ---
+    // --- 5. Red & White Curbs ---
     const curbMat = new StandardMaterial("curbMat", this.scene);
     curbMat.diffuseColor = new Color3(0.85, 0.18, 0.18);
-    curbMat.specularColor = new Color3(0.2, 0.2, 0.2);
+    curbMat.specularColor = new Color3(0.25, 0.25, 0.25);
     this.materials.push(curbMat);
 
     const leftCurb = MeshBuilder.CreateRibbon(
@@ -169,10 +215,10 @@ export class TrackRenderer {
     rightCurb.material = curbMat;
     this.meshes.push(rightCurb);
 
-    // --- Concrete Barrier Retaining Walls ---
+    // --- 6. Concrete Barrier Retaining Walls (Matching Reference Photo) ---
     const barrierMat = new StandardMaterial("barrierMat", this.scene);
-    barrierMat.diffuseColor = new Color3(0.72, 0.74, 0.78);
-    barrierMat.specularColor = new Color3(0.15, 0.15, 0.15);
+    barrierMat.diffuseColor = new Color3(0.72, 0.74, 0.78); // Concrete highway block
+    barrierMat.specularColor = new Color3(0.18, 0.18, 0.18);
     barrierMat.specularPower = 24;
     this.materials.push(barrierMat);
 
@@ -192,16 +238,25 @@ export class TrackRenderer {
     rightBarrier.material = barrierMat;
     this.meshes.push(rightBarrier);
 
-    // --- Start / Finish Checkered Decal & Gantry ---
+    // --- 7. Barrier Safety Amber Reflectors ---
+    this.buildBarrierReflectors(samples, halfWidth);
+
+    // --- 8. Corner Skid Marks & Racing Line Rubber ---
+    this.buildSkidMarks(samples, halfWidth);
+
+    // --- 9. Start / Finish Gantry ---
     this.buildStartGantry(samples[0], halfWidth);
 
-    // --- Trackside Street Lights ---
+    // --- 10. Trackside Lights & Light Pools ---
     this.buildTrackLights(track, halfWidth);
 
-    // --- Scenery Theme ---
+    // --- 11. Scenery & Mountain Horizon ---
     this.buildScenery(track);
   }
 
+  /**
+   * Builds an expansive panoramic sky dome matching real daylight / sunset.
+   */
   private buildSkyDome(track: TrackSpline): void {
     const skyDome = MeshBuilder.CreateSphere(
       "skyDome",
@@ -214,13 +269,15 @@ export class TrackRenderer {
     skyMat.backFaceCulling = false;
     skyMat.disableLighting = true;
 
-    const theme = track.data.theme;
-    if (theme === "city_night") {
+    const weather = track.data.weather || "sunny_clouds";
+    if (weather === "sunny_clouds") {
+      // Clear azure California sky (Reference Photo style)
+      skyMat.emissiveColor = new Color3(0.24, 0.52, 0.88);
+    } else if (track.data.theme === "city_night") {
       skyMat.emissiveColor = new Color3(0.06, 0.08, 0.16);
-    } else if (theme === "coastal_sunset") {
-      skyMat.emissiveColor = new Color3(0.32, 0.14, 0.22);
     } else {
-      skyMat.emissiveColor = new Color3(0.28, 0.18, 0.12);
+      // sunset
+      skyMat.emissiveColor = new Color3(0.35, 0.16, 0.24);
     }
 
     skyDome.material = skyMat;
@@ -228,6 +285,123 @@ export class TrackRenderer {
     this.materials.push(skyMat);
   }
 
+  /**
+   * Generates volumetric 3D drifting cumulus clouds across the sky!
+   */
+  private buildClouds(weather: string): void {
+    const cloudMat = new StandardMaterial("cloudMat", this.scene);
+    cloudMat.specularColor = new Color3(0.1, 0.1, 0.1);
+
+    if (weather === "sunny_clouds") {
+      cloudMat.diffuseColor = new Color3(0.96, 0.98, 1.0);
+      cloudMat.emissiveColor = new Color3(0.45, 0.50, 0.60);
+      cloudMat.alpha = 0.82;
+    } else if (weather === "sunset") {
+      cloudMat.diffuseColor = new Color3(0.95, 0.60, 0.40);
+      cloudMat.emissiveColor = new Color3(0.40, 0.20, 0.15);
+      cloudMat.alpha = 0.85;
+    } else {
+      // overcast
+      cloudMat.diffuseColor = new Color3(0.35, 0.38, 0.42);
+      cloudMat.emissiveColor = new Color3(0.15, 0.18, 0.22);
+      cloudMat.alpha = 0.90;
+    }
+    this.materials.push(cloudMat);
+
+    // Create 24 billowy cumulus cloud formations across the 3km sky
+    for (let i = 0; i < 24; i++) {
+      const cloudRoot = new Mesh(`cloud_group_${i}`, this.scene);
+      const angle = (i / 24) * Math.PI * 2 + (i % 3) * 0.4;
+      const radius = 350 + (i % 5) * 220;
+      const cx = Math.cos(angle) * radius + ((i * 73) % 200 - 100);
+      const cz = Math.sin(angle) * radius + ((i * 47) % 200 - 100);
+      const cy = 200 + ((i * 19) % 90);
+
+      cloudRoot.position.set(cx, cy, cz);
+
+      // Group of 3-5 overlapping soft spherical cloud puffs
+      const puffCount = 3 + (i % 3);
+      for (let p = 0; p < puffCount; p++) {
+        const sx = 65 + ((p * 23) % 45);
+        const sy = 24 + ((p * 13) % 18);
+        const sz = 55 + ((p * 31) % 40);
+
+        const puff = MeshBuilder.CreateSphere(`puff_${i}_${p}`, { diameter: 1, segments: 10 }, this.scene);
+        puff.scaling.set(sx, sy, sz);
+        puff.position.set((p - puffCount * 0.5) * 35, ((p % 2) - 0.5) * 10, ((p % 3) - 1) * 25);
+        puff.material = cloudMat;
+        puff.parent = cloudRoot;
+        this.meshes.push(puff);
+      }
+
+      this.clouds.push(cloudRoot);
+      this.meshes.push(cloudRoot);
+    }
+  }
+
+  /**
+   * Adds glowing amber safety reflectors along barrier tops.
+   */
+  private buildBarrierReflectors(samples: Array<{ position: { x: number; y: number; z: number }; normal: { x: number; z: number } }>, halfWidth: number): void {
+    const reflectorMat = new StandardMaterial("reflectorMat", this.scene);
+    reflectorMat.diffuseColor = new Color3(1.0, 0.65, 0.1);
+    reflectorMat.emissiveColor = new Color3(0.95, 0.55, 0.05);
+    this.materials.push(reflectorMat);
+
+    for (let i = 0; i < samples.length; i += 7) {
+      const s = samples[i];
+      const p = s.position;
+      const nx = s.normal.x;
+      const nz = s.normal.z;
+
+      // Left Reflector Stud
+      const studL = MeshBuilder.CreateBox(`studL_${i}`, { width: 0.22, height: 0.10, depth: 0.12 }, this.scene);
+      studL.position.set(p.x - nx * (halfWidth + 1.5), p.y + 1.08, p.z - nz * (halfWidth + 1.5));
+      studL.material = reflectorMat;
+      this.meshes.push(studL);
+
+      // Right Reflector Stud
+      const studR = MeshBuilder.CreateBox(`studR_${i}`, { width: 0.22, height: 0.10, depth: 0.12 }, this.scene);
+      studR.position.set(p.x + nx * (halfWidth + 1.5), p.y + 1.08, p.z + nz * (halfWidth + 1.5));
+      studR.material = reflectorMat;
+      this.meshes.push(studR);
+    }
+  }
+
+  /**
+   * Places authentic racing rubber skid marks on braking zones and apexes.
+   */
+  private buildSkidMarks(samples: Array<{ position: { x: number; y: number; z: number }; normal: { x: number; z: number } }>, halfWidth: number): void {
+    const skidMat = new StandardMaterial("skidMat", this.scene);
+    skidMat.diffuseColor = new Color3(0.04, 0.04, 0.05); // Burned tire rubber
+    skidMat.alpha = 0.55;
+    this.materials.push(skidMat);
+
+    // Place skid patches on corner entries every 16 samples
+    for (let i = 8; i < samples.length; i += 16) {
+      const s = samples[i];
+      const p = s.position;
+      const nx = s.normal.x;
+      const nz = s.normal.z;
+
+      // Dual tire skid track
+      const skidL = MeshBuilder.CreatePlane(`skidL_${i}`, { width: 0.6, height: 9.0 }, this.scene);
+      skidL.position.set(p.x - nx * (halfWidth * 0.35), p.y + 0.035, p.z - nz * (halfWidth * 0.35));
+      skidL.rotation.x = Math.PI / 2;
+      skidL.material = skidMat;
+      this.meshes.push(skidL);
+
+      const skidR = MeshBuilder.CreatePlane(`skidR_${i}`, { width: 0.6, height: 9.0 }, this.scene);
+      skidR.position.set(p.x + nx * (halfWidth * 0.35), p.y + 0.035, p.z + nz * (halfWidth * 0.35));
+      skidR.rotation.x = Math.PI / 2;
+      skidR.material = skidMat;
+      this.meshes.push(skidR);
+    }
+  }
+
+  /**
+   * Start / Finish Gantry with illuminated banner and signal pods.
+   */
   private buildStartGantry(
     startSample: {
       position: { x: number; y: number; z: number };
@@ -242,10 +416,10 @@ export class TrackRenderer {
     const tx = startSample.tangent.x;
     const tz = startSample.tangent.z;
 
-    // 1. Checkered Start/Finish stripe across the asphalt
+    // Checkered Start/Finish stripe across the asphalt
     const startStripe = MeshBuilder.CreatePlane(
       "startStripe",
-      { width: halfWidth * 2, height: 2.2 },
+      { width: halfWidth * 2, height: 2.4 },
       this.scene
     );
     startStripe.position = new Vector3(p.x, p.y + 0.05, p.z);
@@ -253,63 +427,66 @@ export class TrackRenderer {
     startStripe.rotation.z = -Math.atan2(tx, tz);
 
     const stripeMat = new StandardMaterial("stripeMat", this.scene);
-    stripeMat.diffuseColor = new Color3(0.95, 0.95, 0.95);
-    stripeMat.emissiveColor = new Color3(0.4, 0.4, 0.4);
+    stripeMat.diffuseColor = new Color3(0.96, 0.96, 0.98);
+    stripeMat.emissiveColor = new Color3(0.35, 0.35, 0.35);
     startStripe.material = stripeMat;
     this.meshes.push(startStripe);
     this.materials.push(stripeMat);
 
-    // 2. Truss pillars
+    // Gantry Truss Structure
     const span = halfWidth + 2.6;
     const pLeft = new Vector3(p.x - nx * span, p.y, p.z - nz * span);
     const pRight = new Vector3(p.x + nx * span, p.y, p.z + nz * span);
 
     const pillarMat = new StandardMaterial("pillarMat", this.scene);
-    pillarMat.diffuseColor = new Color3(0.15, 0.18, 0.24);
+    pillarMat.diffuseColor = new Color3(0.18, 0.20, 0.25);
     this.materials.push(pillarMat);
 
-    const pillarL = MeshBuilder.CreateCylinder("pillarL", { height: 8, diameter: 0.7 }, this.scene);
-    pillarL.position = new Vector3(pLeft.x, pLeft.y + 4.0, pLeft.z);
+    const pillarL = MeshBuilder.CreateCylinder("pillarL", { height: 8.5, diameter: 0.75 }, this.scene);
+    pillarL.position = new Vector3(pLeft.x, pLeft.y + 4.25, pLeft.z);
     pillarL.material = pillarMat;
     this.meshes.push(pillarL);
 
-    const pillarR = MeshBuilder.CreateCylinder("pillarR", { height: 8, diameter: 0.7 }, this.scene);
-    pillarR.position = new Vector3(pRight.x, pRight.y + 4.0, pRight.z);
+    const pillarR = MeshBuilder.CreateCylinder("pillarR", { height: 8.5, diameter: 0.75 }, this.scene);
+    pillarR.position = new Vector3(pRight.x, pRight.y + 4.25, pRight.z);
     pillarR.material = pillarMat;
     this.meshes.push(pillarR);
 
-    // 3. Top Cross Beam
+    // Overhead Heavy Beam
     const beam = MeshBuilder.CreateBox(
       "gantryBeam",
-      { width: 1.4, height: 1.5, depth: span * 2 + 1.2 },
+      { width: 1.5, height: 1.6, depth: span * 2 + 1.2 },
       this.scene
     );
-    beam.position = new Vector3((pLeft.x + pRight.x) * 0.5, p.y + 7.5, (pLeft.z + pRight.z) * 0.5);
+    beam.position = new Vector3((pLeft.x + pRight.x) * 0.5, p.y + 8.0, (pLeft.z + pRight.z) * 0.5);
     beam.rotation.y = Math.atan2(pRight.x - pLeft.x, pRight.z - pLeft.z);
     beam.material = pillarMat;
     this.meshes.push(beam);
 
-    // 4. Glowing Start Countdown Signal Lights
+    // Glowing Countdown Signal Light Pods
     const lightPodMat = new StandardMaterial("podMat", this.scene);
     lightPodMat.diffuseColor = new Color3(0.95, 0.15, 0.15);
     lightPodMat.emissiveColor = new Color3(0.95, 0.15, 0.15);
     this.materials.push(lightPodMat);
 
     for (let i = -2; i <= 2; i++) {
-      const pod = MeshBuilder.CreateSphere(`pod_${i}`, { diameter: 0.4 }, this.scene);
+      const pod = MeshBuilder.CreateSphere(`pod_${i}`, { diameter: 0.45 }, this.scene);
       pod.position = new Vector3(
-        (pLeft.x + pRight.x) * 0.5 + nx * (i * 1.2),
-        p.y + 7.0,
-        (pLeft.z + pRight.z) * 0.5 + nz * (i * 1.2)
+        (pLeft.x + pRight.x) * 0.5 + nx * (i * 1.3),
+        p.y + 7.4,
+        (pLeft.z + pRight.z) * 0.5 + nz * (i * 1.3)
       );
       pod.material = lightPodMat;
       this.meshes.push(pod);
     }
   }
 
+  /**
+   * Streetlights with downward light pool decals on the asphalt.
+   */
   private buildTrackLights(track: TrackSpline, halfWidth: number): void {
     const lampMat = new StandardMaterial("lampPoleMat", this.scene);
-    lampMat.diffuseColor = new Color3(0.22, 0.25, 0.32);
+    lampMat.diffuseColor = new Color3(0.24, 0.27, 0.34);
     this.materials.push(lampMat);
 
     const lightBulbMat = new StandardMaterial("lampBulbMat", this.scene);
@@ -317,45 +494,64 @@ export class TrackRenderer {
     lightBulbMat.emissiveColor = new Color3(1.0, 0.95, 0.75);
     this.materials.push(lightBulbMat);
 
-    // Place a light pole every 10 samples
-    for (let i = 4; i < track.samples.length; i += 10) {
+    const poolMat = new StandardMaterial("poolMat", this.scene);
+    poolMat.diffuseColor = new Color3(1.0, 0.92, 0.7);
+    poolMat.emissiveColor = new Color3(0.35, 0.30, 0.18);
+    poolMat.alpha = 0.25;
+    this.materials.push(poolMat);
+
+    for (let i = 4; i < track.samples.length; i += 12) {
       const s = track.samples[i];
-      const side = (i / 10) % 2 === 0 ? 1 : -1;
-      const poleOffset = halfWidth + 2.4;
+      const side = (i / 12) % 2 === 0 ? 1 : -1;
+      const poleOffset = halfWidth + 2.5;
 
       const px = s.position.x + s.normal.x * poleOffset * side;
       const pz = s.position.z + s.normal.z * poleOffset * side;
 
       // Pole
-      const pole = MeshBuilder.CreateCylinder(`lamp_${i}`, { height: 9, diameter: 0.35 }, this.scene);
-      pole.position.set(px, s.position.y + 4.5, pz);
+      const pole = MeshBuilder.CreateCylinder(`lamp_${i}`, { height: 9.5, diameter: 0.38 }, this.scene);
+      pole.position.set(px, s.position.y + 4.75, pz);
       pole.material = lampMat;
       this.meshes.push(pole);
 
-      // Arm extending inwards
-      const arm = MeshBuilder.CreateBox(`arm_${i}`, { width: 0.2, height: 0.2, depth: 2.2 }, this.scene);
+      // Arm
+      const arm = MeshBuilder.CreateBox(`arm_${i}`, { width: 0.22, height: 0.22, depth: 2.4 }, this.scene);
       const armAngle = Math.atan2(-s.normal.x * side, -s.normal.z * side);
       arm.position.set(
-        px - s.normal.x * side * 0.9,
-        s.position.y + 8.8,
-        pz - s.normal.z * side * 0.9
+        px - s.normal.x * side * 1.0,
+        s.position.y + 9.2,
+        pz - s.normal.z * side * 1.0
       );
       arm.rotation.y = armAngle;
       arm.material = lampMat;
       this.meshes.push(arm);
 
-      // Glowing Lamp Fixture Head
-      const fixture = MeshBuilder.CreateBox(`fixture_${i}`, { width: 0.45, height: 0.2, depth: 0.8 }, this.scene);
+      // Fixture Head
+      const fixture = MeshBuilder.CreateBox(`fixture_${i}`, { width: 0.5, height: 0.2, depth: 0.85 }, this.scene);
       fixture.position.set(
-        px - s.normal.x * side * 1.8,
-        s.position.y + 8.6,
-        pz - s.normal.z * side * 1.8
+        px - s.normal.x * side * 2.0,
+        s.position.y + 9.0,
+        pz - s.normal.z * side * 2.0
       );
       fixture.material = lightBulbMat;
       this.meshes.push(fixture);
+
+      // Light Pool on Asphalt Road
+      const pool = MeshBuilder.CreateDisc(`pool_${i}`, { radius: 4.8 }, this.scene);
+      pool.rotation.x = Math.PI / 2;
+      pool.position.set(
+        px - s.normal.x * side * 3.5,
+        s.position.y + 0.032,
+        pz - s.normal.z * side * 3.5
+      );
+      pool.material = poolMat;
+      this.meshes.push(pool);
     }
   }
 
+  /**
+   * Environment Scenery: Mountains matching reference photo, ocean, and canyon rock.
+   */
   private buildScenery(track: TrackSpline): void {
     const theme = track.data.theme;
 
@@ -367,11 +563,11 @@ export class TrackRenderer {
     if (theme === "city_night") {
       groundMat.diffuseColor = new Color3(0.05, 0.06, 0.09);
       this.buildCityBuildings(track);
-    } else if (theme === "coastal_sunset") {
-      groundMat.diffuseColor = new Color3(0.14, 0.09, 0.08);
+    } else if (theme === "coastal_sunset" || track.data.id === "pacific_highway") {
+      groundMat.diffuseColor = new Color3(0.18, 0.16, 0.15); // Highway verge earth
       this.buildCoastalIslands();
     } else {
-      groundMat.diffuseColor = new Color3(0.22, 0.14, 0.09);
+      groundMat.diffuseColor = new Color3(0.24, 0.16, 0.11);
       this.buildCanyonMesas(track);
     }
 
@@ -392,7 +588,6 @@ export class TrackRenderer {
     windowMat.emissiveColor = new Color3(0.15, 0.28, 0.45);
     this.materials.push(windowMat);
 
-    // Place skyline skyscrapers around track perimeter
     for (let i = 0; i < track.samples.length; i += 6) {
       const s = track.samples[i];
       const offset = 42 + (i % 4) * 22;
@@ -408,7 +603,6 @@ export class TrackRenderer {
       bldg.material = bldgMat;
       this.meshes.push(bldg);
 
-      // Lit window band
       const band = MeshBuilder.CreateBox(`band_${i}`, { width: width + 0.2, height: 1.8, depth: width + 0.2 }, this.scene);
       band.position.set(bx, height * 0.72, bz);
       band.material = windowMat;
@@ -417,20 +611,21 @@ export class TrackRenderer {
   }
 
   private buildCoastalIslands(): void {
-    // Water plane with reflective sunset sheen
+    // Water plane with reflective sunset/sunlight sheen
     const water = MeshBuilder.CreateGround("water", { width: 3600, height: 3600 }, this.scene);
     water.position.y = -1.2;
     const waterMat = new StandardMaterial("waterMat", this.scene);
-    waterMat.diffuseColor = new Color3(0.08, 0.16, 0.28);
-    waterMat.specularColor = new Color3(0.8, 0.55, 0.4);
+    waterMat.diffuseColor = new Color3(0.08, 0.22, 0.38);
+    waterMat.specularColor = new Color3(0.85, 0.88, 0.95); // Bright specular sun sheen
     waterMat.specularPower = 64;
     water.material = waterMat;
+    this.waterMesh = water;
     this.meshes.push(water);
     this.materials.push(waterMat);
 
     // Distant Mountain Ranges matching reference photo horizon
     const mountainMat = new StandardMaterial("mountainMat", this.scene);
-    mountainMat.diffuseColor = new Color3(0.25, 0.21, 0.26);
+    mountainMat.diffuseColor = new Color3(0.28, 0.25, 0.30);
     mountainMat.specularColor = new Color3(0.05, 0.05, 0.05);
     this.materials.push(mountainMat);
 
@@ -480,11 +675,38 @@ export class TrackRenderer {
     }
   }
 
+  /**
+   * Updates dynamic clouds and water wave animation every frame.
+   */
+  public update(dt: number): void {
+    this.animTime += dt;
+
+    // Slowly drift clouds across the sky with gentle wind
+    const windSpeedX = 3.5 * dt;
+    const windSpeedZ = 1.2 * dt;
+
+    for (const cloud of this.clouds) {
+      cloud.position.x += windSpeedX;
+      cloud.position.z += windSpeedZ;
+
+      // Wrap around bounds so the sky remains full of clouds indefinitely
+      if (cloud.position.x > 1400) cloud.position.x -= 2800;
+      if (cloud.position.z > 1400) cloud.position.z -= 2800;
+    }
+
+    // Subtle water specular ripple
+    if (this.waterMesh) {
+      this.waterMesh.position.y = -1.2 + Math.sin(this.animTime * 1.5) * 0.05;
+    }
+  }
+
   public dispose(): void {
     for (const mesh of this.meshes) {
       mesh.dispose();
     }
     this.meshes = [];
+    this.clouds = [];
+    this.waterMesh = null;
 
     for (const mat of this.materials) {
       mat.dispose();
