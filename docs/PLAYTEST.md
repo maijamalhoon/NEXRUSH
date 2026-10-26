@@ -22,8 +22,12 @@ npm run dev
 ## Race controls and handling
 - [ ] Wait for the 3–2–1 countdown and GO cue; controls remain inactive before the race starts.
 - [ ] Accelerate, coast, brake, reverse and steer in both directions.
-- [ ] Space activates nitro and depletes/recharges the nitro meter.
+- [ ] Space activates nitro, depletes/recharges the meter, shows exhaust flames and speed-line feedback, and adjusts the chase camera.
 - [ ] Shift plus steering produces a drift without Space acting as the handbrake.
+- [ ] A valid drift adds combo points; releasing the drift stops the combo state and the score remains visible for the race.
+- [ ] Steering visibly turns the front wheels and rolls the body subtly without excessive wobble.
+- [ ] Low-speed contact nudges the car; high-speed takedowns produce a brief impact response.
+- [ ] Easy / Medium / Hard AI pace feels distinct, rivals are competitive at speed, and their racing lines vary without leaving the road.
 - [ ] Mobile gas, brake, steer, boost and drift buttons work with pointer cancel/leave.
 - [ ] Driving off the road slows the car without reversing a stopped car.
 - [ ] Contact at lower speed slows/nudges the player; a high-speed hit can take down an AI rival and add credits once.
