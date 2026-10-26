@@ -426,60 +426,137 @@ export class RacingScene {
 
   private makeCar(name: string, color: Color3, player: boolean): Mesh {
     const carShape = player ? this.setup.car.shape : "gt";
-    const dimensions = carShape === "hyper" ? { width: 1.88, height: 0.46, depth: 4.05 } : carShape === "muscle" ? { width: 2.05, height: 0.62, depth: 3.7 } : carShape === "rally" ? { width: 1.95, height: 0.62, depth: 3.55 } : carShape === "sport" ? { width: 1.82, height: 0.48, depth: 3.65 } : { width: 1.9, height: 0.52, depth: 3.8 };
+    const dimensions = carShape === "hyper" ? { width: 1.88, height: 0.42, depth: 4.05 } : carShape === "muscle" ? { width: 2.05, height: 0.56, depth: 3.7 } : carShape === "rally" ? { width: 1.95, height: 0.55, depth: 3.55 } : carShape === "sport" ? { width: 1.82, height: 0.42, depth: 3.65 } : { width: 1.9, height: 0.46, depth: 3.8 };
     const body = MeshBuilder.CreateBox(name, dimensions, this.scene);
     body.position.y = 0.65;
+    body.isPickable = false;
+
     const paint = new StandardMaterial(name + "-paint", this.scene);
     paint.diffuseColor = color;
-    paint.specularColor = new Color3(0.72, 0.78, 0.86);
-    paint.specularPower = 64;
-    body.material = paint;
-    const cabin = MeshBuilder.CreateBox(name + "-canopy", { width: 1.32, height: 0.46, depth: 1.55 }, this.scene);
-    cabin.position.set(0, 0.45, -0.15);
-    cabin.parent = body;
+    paint.specularColor = new Color3(0.9, 0.92, 1);
+    paint.specularPower = 96;
+    const carbon = new StandardMaterial(name + "-carbon", this.scene);
+    carbon.diffuseColor = new Color3(0.025, 0.035, 0.05);
+    carbon.specularColor = new Color3(0.25, 0.3, 0.36);
     const glass = new StandardMaterial(name + "-glass", this.scene);
-    glass.diffuseColor = new Color3(0.035, 0.12, 0.18);
-    glass.emissiveColor = new Color3(0.01, 0.07, 0.09);
+    glass.diffuseColor = new Color3(0.025, 0.09, 0.13);
+    glass.emissiveColor = new Color3(0.008, 0.025, 0.035);
+    glass.specularColor = new Color3(0.65, 0.78, 0.86);
+    glass.specularPower = 120;
+    const chrome = new StandardMaterial(name + "-alloy", this.scene);
+    chrome.diffuseColor = new Color3(0.32, 0.42, 0.52);
+    chrome.specularColor = new Color3(0.95, 0.98, 1);
+    chrome.specularPower = 128;
+    const tire = new StandardMaterial(name + "-rubber", this.scene);
+    tire.diffuseColor = new Color3(0.018, 0.022, 0.03);
+    tire.specularColor = new Color3(0.07, 0.08, 0.1);
+    const lamp = new StandardMaterial(name + "-headlamp-material", this.scene);
+    lamp.emissiveColor = new Color3(0.45, 0.85, 1);
+    lamp.disableLighting = true;
+    const tail = new StandardMaterial(name + "-taillamp-material", this.scene);
+    tail.emissiveColor = new Color3(1, 0.015, 0.035);
+    tail.disableLighting = true;
+    const accent = new StandardMaterial(name + "-accent", this.scene);
+    accent.diffuseColor = Color3.FromHexString(player ? this.setup.track.primary : "#a7c8ff");
+    accent.emissiveColor = Color3.FromHexString(player ? this.setup.track.primary : "#18334d");
+    const addBox = (label: string, size: { width: number; height: number; depth: number }, x: number, y: number, z: number, material: StandardMaterial, rotationY = 0) => {
+      const mesh = MeshBuilder.CreateBox(name + "-" + label, size, this.scene);
+      mesh.position.set(x, y, z);
+      mesh.rotation.y = rotationY;
+      mesh.material = material;
+      mesh.parent = body;
+      mesh.isPickable = false;
+      return mesh;
+    };
+
+    // Layered body panels give each car a readable hood, shoulder line and rear deck.
+    addBox("lower-chassis", { width: dimensions.width * 0.94, height: 0.18, depth: dimensions.depth * 0.92 }, 0, -0.2, 0, carbon);
+    addBox("front-hood", { width: dimensions.width * 0.84, height: 0.12, depth: dimensions.depth * 0.38 }, 0, 0.19, dimensions.depth * 0.27, paint);
+    addBox("rear-deck", { width: dimensions.width * 0.86, height: 0.14, depth: dimensions.depth * 0.22 }, 0, 0.17, -dimensions.depth * 0.32, paint);
+    addBox("front-splitter", { width: dimensions.width * 1.02, height: 0.07, depth: 0.36 }, 0, -0.19, dimensions.depth * 0.49, carbon);
+    addBox("rear-diffuser", { width: dimensions.width * 0.86, height: 0.11, depth: 0.3 }, 0, -0.18, -dimensions.depth * 0.48, carbon);
+    addBox("side-skirt-left", { width: 0.1, height: 0.13, depth: dimensions.depth * 0.58 }, -dimensions.width * 0.49, -0.16, 0, accent);
+    addBox("side-skirt-right", { width: 0.1, height: 0.13, depth: dimensions.depth * 0.58 }, dimensions.width * 0.49, -0.16, 0, accent);
+
+    const cabin = MeshBuilder.CreateBox(name + "-canopy", {
+      width: dimensions.width * 0.68, height: dimensions.height * 0.86, depth: dimensions.depth * 0.38
+    }, this.scene);
+    cabin.position.set(0, dimensions.height * 0.78, -0.08);
+    cabin.scaling.z = 1;
+    cabin.parent = body;
     cabin.material = glass;
-    const rubber = new StandardMaterial(name + "-rubber", this.scene);
-    rubber.diffuseColor = new Color3(0.035, 0.04, 0.055);
-    const targetWheels = player ? this.wheels : [];
-    for (const x of [-0.98, 0.98]) for (const z of [-1.2, 1.2]) {
-      const w = MeshBuilder.CreateCylinder(name + "-wheel", { diameter: 0.78, height: 0.32, tessellation: 10 }, this.scene);
-      w.rotation.z = Math.PI / 2;
-      w.position.set(x, -0.25, z);
-      w.material = rubber;
-      w.parent = body;
-      targetWheels.push(w);
+    cabin.isPickable = false;
+    addBox("roof-panel", { width: dimensions.width * 0.56, height: 0.09, depth: dimensions.depth * 0.2 }, 0, dimensions.height * 1.17, -0.1, paint);
+    addBox("windshield", { width: dimensions.width * 0.58, height: 0.035, depth: dimensions.depth * 0.11 }, 0, dimensions.height * 0.98, dimensions.depth * 0.055, glass, -0.3);
+    addBox("rear-window", { width: dimensions.width * 0.56, height: 0.035, depth: dimensions.depth * 0.1 }, 0, dimensions.height * 0.94, -dimensions.depth * 0.2, glass, 0.3);
+    addBox("front-grille", { width: dimensions.width * 0.43, height: 0.13, depth: 0.045 }, 0, -0.015, dimensions.depth * 0.51, carbon);
+    addBox("front-grille-accent", { width: dimensions.width * 0.28, height: 0.025, depth: 0.05 }, 0, -0.015, dimensions.depth * 0.525, accent);
+    addBox("rear-lightbar", { width: dimensions.width * 0.72, height: 0.065, depth: 0.05 }, 0, 0.075, -dimensions.depth * 0.51, tail);
+
+    for (const x of [-0.65, 0.65]) {
+      addBox("headlight", { width: 0.38, height: 0.075, depth: 0.055 }, x, 0.075, dimensions.depth * 0.505, lamp);
+      addBox("front-air-vent", { width: 0.2, height: 0.13, depth: 0.05 }, x * 1.25, -0.055, dimensions.depth * 0.51, carbon);
+      addBox("mirror", { width: 0.22, height: 0.09, depth: 0.18 }, x * 1.22, 0.2, 0.36, paint);
     }
-    const spoiler = MeshBuilder.CreateBox(name + "-spoiler", { width: 1.75, height: 0.08, depth: 0.28 }, this.scene);
-    spoiler.position.set(0, -0.15, -1.6);
-    spoiler.parent = body;
 
-    const headlampMaterial = new StandardMaterial(name + "-headlamp-material", this.scene);
-    headlampMaterial.emissiveColor = new Color3(0.03, 0.65, 0.9);
-    const headlamp = MeshBuilder.CreateBox(name + "-headlamp", { width: 1.25, height: 0.09, depth: 0.07 }, this.scene);
-    headlamp.position.set(0, 0.03, 1.88);
-    headlamp.material = headlampMaterial;
-    headlamp.parent = body;
+    // Detailed low-poly wheel assemblies: rubber, alloy face, hub and five spokes.
+    const targetWheels = player ? this.wheels : [];
+    for (const x of [-dimensions.width * 0.49, dimensions.width * 0.49]) {
+      for (const z of [-dimensions.depth * 0.31, dimensions.depth * 0.31]) {
+        const wheel = MeshBuilder.CreateCylinder(name + "-wheel", { diameter: 0.76, height: 0.3, tessellation: 16 }, this.scene);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(x, -0.2, z);
+        wheel.material = tire;
+        wheel.parent = body;
+        wheel.isPickable = false;
+        targetWheels.push(wheel);
+        const outerX = x + Math.sign(x) * 0.155;
+        const rim = MeshBuilder.CreateCylinder(name + "-rim", { diameter: 0.52, height: 0.035, tessellation: 16 }, this.scene);
+        rim.rotation.z = Math.PI / 2;
+        rim.position.set(outerX, -0.2, z);
+        rim.material = chrome;
+        rim.parent = body;
+        rim.isPickable = false;
+        const hub = MeshBuilder.CreateCylinder(name + "-hub", { diameter: 0.17, height: 0.05, tessellation: 12 }, this.scene);
+        hub.rotation.z = Math.PI / 2;
+        hub.position.set(outerX + Math.sign(x) * 0.025, -0.2, z);
+        hub.material = accent;
+        hub.parent = body;
+        hub.isPickable = false;
+        for (let spoke = 0; spoke < 5; spoke++) {
+          const angle = spoke / 5 * Math.PI * 2;
+          const spokeMesh = MeshBuilder.CreateBox(name + "-spoke", { width: 0.035, height: 0.2, depth: 0.035 }, this.scene);
+          spokeMesh.position.set(outerX + Math.sign(x) * 0.022, -0.2 + Math.sin(angle) * 0.13, z + Math.cos(angle) * 0.13);
+          spokeMesh.rotation.x = -angle;
+          spokeMesh.material = carbon;
+          spokeMesh.parent = body;
+          spokeMesh.isPickable = false;
+        }
+      }
+    }
 
-    const taillampMaterial = new StandardMaterial(name + "-taillamp-material", this.scene);
-    taillampMaterial.emissiveColor = new Color3(0.95, 0.025, 0.12);
-    const taillamp = MeshBuilder.CreateBox(name + "-taillamp", { width: 1.15, height: 0.08, depth: 0.07 }, this.scene);
-    taillamp.position.set(0, 0.03, -1.88);
-    taillamp.material = taillampMaterial;
-    taillamp.parent = body;
-    headlamp.isPickable = false;
-    taillamp.isPickable = false;
+    // A proper raised wing and twin exhausts make the rear silhouette more distinct.
+    addBox("wing-left-support", { width: 0.07, height: 0.24, depth: 0.07 }, -0.48, 0.27, -dimensions.depth * 0.43, carbon);
+    addBox("wing-right-support", { width: 0.07, height: 0.24, depth: 0.07 }, 0.48, 0.27, -dimensions.depth * 0.43, carbon);
+    addBox("rear-wing", { width: dimensions.width * 0.94, height: 0.09, depth: 0.32 }, 0, 0.39, -dimensions.depth * 0.44, paint);
+    for (const x of [-0.36, 0.36]) {
+      const exhaust = MeshBuilder.CreateCylinder(name + "-exhaust", { diameter: 0.13, height: 0.16, tessellation: 10 }, this.scene);
+      exhaust.rotation.x = Math.PI / 2;
+      exhaust.position.set(x, -0.09, -dimensions.depth * 0.52);
+      exhaust.material = chrome;
+      exhaust.parent = body;
+      exhaust.isPickable = false;
+    }
+
     if (player) {
       const boostMaterial = new StandardMaterial(name + "-boost-flame-material", this.scene);
       boostMaterial.diffuseColor = new Color3(0.02, 0.72, 1);
       boostMaterial.emissiveColor = new Color3(0.05, 0.55, 1);
       boostMaterial.disableLighting = true;
-      for (const x of [-0.48, 0.48]) {
-        const flame = MeshBuilder.CreateCylinder(name + "-boost-flame", { height: 0.92, diameterTop: 0.035, diameterBottom: 0.3, tessellation: 6 }, this.scene);
+      for (const x of [-0.36, 0.36]) {
+        const flame = MeshBuilder.CreateCylinder(name + "-boost-flame", { height: 0.92, diameterTop: 0.035, diameterBottom: 0.3, tessellation: 8 }, this.scene);
         flame.rotation.x = Math.PI / 2;
-        flame.position.set(x, -0.02, -2.12);
+        flame.position.set(x, -0.04, -dimensions.depth * 0.55);
         flame.material = boostMaterial;
         flame.parent = body;
         flame.isVisible = false;
