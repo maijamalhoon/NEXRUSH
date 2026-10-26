@@ -34,6 +34,7 @@ Open the local URL printed by Vite. Run the racing logic tests with `npm test`. 
 - Three lightweight AI rivals following the circuit at different target speeds and offset racing lines.
 - Instanced low-poly neon skyline, start gate, and emissive front/rear car lights; Performance mode hides optional skyline detail.
 - Race countdown and GO cue; session timer, live lap timer, last/best lap records, and reset-to-grid restart.
+- Race countdown, lap records and current lap clock are updated independently from frame-rate; the reset starts a fresh session.
 - Arcade acceleration, braking, handbrake and lateral-momentum drift model, grass slowdown, simple opponent contact response, and reset-to-grid control.
 - Live speed, RPM, gear, elapsed time, lap, position and off-road HUD indicators.
 - Auto, Performance, Balanced and High rendering quality settings. Auto mode adjusts render resolution and uses hysteresis before restoring optional scenery detail to avoid quality flicker.
