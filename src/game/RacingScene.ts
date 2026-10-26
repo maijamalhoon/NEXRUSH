@@ -350,7 +350,7 @@ export class RacingScene {
   }
 
   private publishTelemetry(accelerating: boolean) {
-    const playerProgress = (this.lap - 1) * TAU + this.lapProgress;
+    const playerProgress = this.raceFinished ? TOTAL_LAPS * TAU : (this.lap - 1) * TAU + this.lapProgress;
     const position = 1 + this.opponents.filter(o => o.progress > playerProgress).length;
     const racePhase = getRacePhase(this.raceStarted, this.goFlashRemaining, this.raceFinished);
     this.onTelemetry({
