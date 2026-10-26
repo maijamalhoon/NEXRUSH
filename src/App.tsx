@@ -1,6 +1,6 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 import {RacingScene,type QualityMode,type Telemetry} from "./game/RacingScene";
-const empty:Telemetry={speed:0,rpm:900,gear:1,elapsed:0,lap:1,position:4,offTrack:false};
+const empty:Telemetry={speed:0,rpm:900,gear:1,elapsed:0,lap:1,position:4,offTrack:false,driftAngle:0};
 export default function App(){
  const canvas=useRef<HTMLCanvasElement>(null);const game=useRef<RacingScene|null>(null);
  const [quality,setQuality]=useState<QualityMode>("auto");const [data,setData]=useState(empty);const [ready,setReady]=useState(false);const [help,setHelp]=useState(false);const [engineError,setEngineError]=useState(false);
@@ -15,7 +15,7 @@ export default function App(){
  <section className="telemetry"><div className="muted">GROUND SPEED <span>KM/H</span></div><div className="speed">{Math.round(data.speed).toString().padStart(3,"0")}<small>KM/H</small></div><div className="meter"><i style={{width:`${Math.min(100,data.speed/2.2)}%`}}/></div><div className="stats"><div><small>GEAR</small><b>{data.gear}</b></div><div><small>ENGINE</small><b>{Math.round(data.rpm).toLocaleString()}<sup> RPM</sup></b></div><div><small>SESSION</small><b>{time(data.elapsed)}</b></div><div><small>POSITION</small><b>P{String(data.position).padStart(2,"0")}</b></div></div></section>
  <div className={`track ${data.offTrack?"offtrack":""}`}><i/>{data.offTrack?"OFF TRACK // LOW GRIP":"CIRCUIT // N-01"} <span>{data.offTrack?"RETURN TO ROAD":"DRY · DAY"}</span></div><div className="hinttime"><small>LAP {data.lap} · FREE RACE</small><b>{time(data.elapsed)}</b></div>
  {help&&<aside className="help"><b>CONTROLS</b><span>W / ↑ Accelerate</span><span>S / ↓ Brake & reverse</span><span>A D / ← → Steer</span><span>SPACE Handbrake</span><span>Touch controls on mobile</span></aside>}
- <div className="bottomleft"><b>◈ &nbsp; FREE RACE</b><small>3 AI RIVALS // GRID ACTIVE</small><small className="adaptive">ADAPTIVE RENDERING · WEBGL</small></div>
+ <div className="bottomleft"><b>◈ &nbsp; FREE RACE</b><small>3 AI RIVALS // GRID ACTIVE</small><small className={Math.abs(data.driftAngle)>10?"drift-active":"drift-idle"}>{Math.abs(data.driftAngle)>10 ? "DRIFT ANGLE // " + Math.abs(data.driftAngle) + "°" : "DRIFT CONTROL // READY"}</small><small className="adaptive">ADAPTIVE RENDERING · WEBGL</small></div>
  <div className="bottomright"><div className="touch">{[["left","◀"],["brake","▼"],["accelerate","▲"],["right","▶"],["handbrake","✦"]].map(([k,label])=><button key={k} className={k==="accelerate"?"boost":k==="handbrake"?"handbrake":""} aria-label={k} onPointerDown={e=>{e.preventDefault();control(k,true)}} onPointerUp={()=>control(k,false)} onPointerLeave={()=>control(k,false)} onPointerCancel={()=>control(k,false)}>{label}</button>)}</div><small className="keys">W THROTTLE　 S BRAKE　 SPACE HANDBRAKE</small></div>
  <footer><span>NEXRUSH © 2026</span><span>BUILT FOR THE OPEN ROAD　◆</span><span>PROTOTYPE 0.2.0</span></footer></main>
 }
