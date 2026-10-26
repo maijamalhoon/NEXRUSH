@@ -203,15 +203,18 @@ export class RacingScene {
       -18,
       18
     );
-    const forward = new Vector3(Math.sin(this.heading), 0, Math.cos(this.heading));
-    const side = new Vector3(Math.cos(this.heading), 0, -Math.sin(this.heading));
-    this.car.position.addInPlace(forward.scale(this.speed * dt / 3.6));
-    this.car.position.addInPlace(side.scale(this.lateralVelocity * dt));
+    const sinHeading = Math.sin(this.heading);
+    const cosHeading = Math.cos(this.heading);
+    const forwardStep = this.speed * dt / 3.6;
+    const lateralStep = this.lateralVelocity * dt;
+    this.car.position.x += sinHeading * forwardStep + cosHeading * lateralStep;
+    this.car.position.z += cosHeading * forwardStep - sinHeading * lateralStep;
     this.car.rotation.y = this.heading;
 
     const trackAngle = Math.atan2(this.car.position.z / RZ, this.car.position.x / RX);
-    const nearest = new Vector3(RX * Math.cos(trackAngle), 0, RZ * Math.sin(trackAngle));
-    const distanceFromCentre = Math.hypot(this.car.position.x - nearest.x, this.car.position.z - nearest.z);
+    const nearestX = RX * Math.cos(trackAngle);
+    const nearestZ = RZ * Math.sin(trackAngle);
+    const distanceFromCentre = Math.hypot(this.car.position.x - nearestX, this.car.position.z - nearestZ);
     this.offTrack = distanceFromCentre > ROAD_HALF_WIDTH - 1.0;
     if (this.offTrack) {
       // Grass should slow the car down, never accelerate a stopped car backwards.
@@ -251,7 +254,10 @@ export class RacingScene {
     }
 
     for (const wheel of this.wheels) wheel.rotation.x += this.speed * dt / 1.2;
-    this.camera.target = Vector3.Lerp(this.camera.target, this.car.position.add(new Vector3(0, 0.65, 0)), Math.min(1, dt * 5));
+    const cameraFollow = Math.min(1, dt * 5);
+    this.camera.target.x += (this.car.position.x - this.camera.target.x) * cameraFollow;
+    this.camera.target.y += (this.car.position.y + 0.65 - this.camera.target.y) * cameraFollow;
+    this.camera.target.z += (this.car.position.z - this.camera.target.z) * cameraFollow;
     this.camera.alpha = -Math.PI / 2 - this.heading;
     this.camera.beta = 1.08 + Math.min(0.12, Math.abs(this.speed) / 1200);
     this.camera.radius = 12 + Math.min(3, Math.abs(this.speed) / 70);
