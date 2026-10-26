@@ -1,7 +1,12 @@
-import {
-  ArcRotateCamera, Color3, Color4, Engine, HemisphericLight, Mesh,
-  MeshBuilder, PBRMaterial, Scene, StandardMaterial, Vector3
-} from "@babylonjs/core";
+import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { Scene } from "@babylonjs/core/scene";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { applyGrassDrag, crossedStartFinish, driftAngleDegrees, positiveAngle, TAU } from "./raceMath";
 
 export type QualityMode = "auto" | "low" | "medium" | "high";
@@ -297,10 +302,10 @@ export class RacingScene {
   private makeCar(name: string, color: Color3, player: boolean): Mesh {
     const body = MeshBuilder.CreateBox(name, { width: 1.9, height: 0.52, depth: 3.8 }, this.scene);
     body.position.y = 0.65;
-    const paint = new PBRMaterial(name + "-paint", this.scene);
-    paint.albedoColor = color;
-    paint.metallic = 0.68;
-    paint.roughness = 0.3;
+    const paint = new StandardMaterial(name + "-paint", this.scene);
+    paint.diffuseColor = color;
+    paint.specularColor = new Color3(0.72, 0.78, 0.86);
+    paint.specularPower = 64;
     body.material = paint;
     const cabin = MeshBuilder.CreateBox(name + "-canopy", { width: 1.32, height: 0.46, depth: 1.55 }, this.scene);
     cabin.position.set(0, 0.45, -0.15);
