@@ -114,7 +114,38 @@ export class RaceSimulation {
     }
 
     // Resolve car-to-car collisions
-    resolveCarCollisions(carList);
+    resolveCarCollisions(
+      carList,
+      (col) => {
+        if (col.carA === "player" || col.carB === "player") {
+          this.state.impactShake = Math.max(this.state.impactShake || 0, col.intensity * 0.6);
+        }
+      },
+      (takedown) => {
+        if (takedown.isPlayerAttacker) {
+          this.state.lastTakedownMessage = "TAKEDOWN!";
+          this.state.impactShake = 0.9;
+        } else if (takedown.isPlayerVictim) {
+          this.state.lastTakedownMessage = "CRASHED!";
+          this.state.impactShake = 1.0;
+        }
+      }
+    );
+
+    // Auto-respawn wrecked cars on track
+    for (const car of carList) {
+      if (car.isWrecked && car.wreckTimer <= 0) {
+        car.isWrecked = false;
+        car.health = car.maxHealth;
+        const sample = this.track.getAtProgress(car.lapProgress);
+        car.position.x = sample.position.x;
+        car.position.z = sample.position.z;
+        car.heading = Math.atan2(sample.tangent.x, sample.tangent.z);
+        car.velocity.x = sample.tangent.x * 16;
+        car.velocity.z = sample.tangent.z * 16;
+        car.angularVelocity = 0;
+      }
+    }
 
     // Update standings (sorted by totalProgress descending)
     this.state.standings = carList

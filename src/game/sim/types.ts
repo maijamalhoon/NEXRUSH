@@ -60,6 +60,11 @@ export interface CarSimState {
   finished: boolean;
   finishTime: number;
   penaltyTime: number;
+  health: number; // 0 to 100
+  maxHealth: number;
+  isWrecked: boolean;
+  wreckTimer: number;
+  takedowns: number;
 }
 
 export type RacePhase = "COUNTDOWN" | "GO" | "RACING" | "FINISHED";
@@ -72,6 +77,8 @@ export interface RaceSimState {
   cars: Record<string, CarSimState>;
   standings: string[]; // car IDs sorted P1, P2, ...
   lapsTotal: number;
+  lastTakedownMessage?: string;
+  impactShake?: number; // 0 to 1 for camera hit shake
 }
 
 export interface TrackPoint {

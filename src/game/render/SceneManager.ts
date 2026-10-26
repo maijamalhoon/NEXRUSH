@@ -62,6 +62,15 @@ export class SceneManager {
     this.dirLight = new DirectionalLight("dirLight", new Vector3(-0.4, -1, -0.4), this.scene);
     this.dirLight.intensity = 1.2;
 
+    // Cinematic Color Grading & Tone Mapping (Automotive Commercial Look)
+    this.scene.imageProcessingConfiguration.toneMappingEnabled = true;
+    this.scene.imageProcessingConfiguration.toneMappingType = 1;
+    this.scene.imageProcessingConfiguration.exposure = 1.18;
+    this.scene.imageProcessingConfiguration.contrast = 1.25;
+    this.scene.imageProcessingConfiguration.vignetteEnabled = true;
+    this.scene.imageProcessingConfiguration.vignetteWeight = 1.1;
+    this.scene.imageProcessingConfiguration.vignetteColor = new Color4(0, 0, 0, 0);
+
     // Sub-renderers
     this.trackRenderer = new TrackRenderer(this.scene);
     this.carRenderer = new CarRenderer(this.scene);
@@ -191,6 +200,14 @@ export class SceneManager {
         this.camera.fov = this.baseFov + speedRatio * 0.1 + fovBoost;
 
         this.camera.target.set(targetX, 1.1, targetZ);
+      }
+
+      // Camera impact shake during collisions and takedowns
+      if (raceState && raceState.impactShake && raceState.impactShake > 0) {
+        const shakeAmt = raceState.impactShake * 0.35;
+        this.camera.target.x += (Math.random() - 0.5) * shakeAmt;
+        this.camera.target.y += (Math.random() - 0.5) * shakeAmt;
+        raceState.impactShake = Math.max(0, raceState.impactShake - 3.5 * dt);
       }
     }
 

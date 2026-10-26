@@ -46,6 +46,11 @@ export function createInitialCarSimState(
     finished: false,
     finishTime: 0,
     penaltyTime: 0,
+    health: 100,
+    maxHealth: 100,
+    isWrecked: false,
+    wreckTimer: 0,
+    takedowns: 0,
   };
 }
 
@@ -61,6 +66,19 @@ export function stepVehiclePhysics(
 ): CarSimState {
   const next = { ...state, position: { ...state.position }, velocity: { ...state.velocity } };
 
+  // If car is wrecked, apply skid friction and wait for respawn
+  if (next.isWrecked) {
+    next.velocity.x *= Math.max(0, 1 - 2.5 * dt);
+    next.velocity.z *= Math.max(0, 1 - 2.5 * dt);
+    next.position.x += next.velocity.x * dt;
+    next.position.z += next.velocity.z * dt;
+    next.angularVelocity *= Math.max(0, 1 - 3.0 * dt);
+    next.heading += next.angularVelocity * dt;
+    next.speedKmh = Math.round(Math.sqrt(next.velocity.x ** 2 + next.velocity.z ** 2) * 3.6);
+    next.wreckTimer -= dt;
+    return next;
+  }
+
   // Heading unit vectors in 3D Babylon coordinates (heading 0 = +Z forward, +X right)
   const forwardX = Math.sin(next.heading);
   const forwardZ = Math.cos(next.heading);
@@ -75,16 +93,19 @@ export function stepVehiclePhysics(
   const surfaceGrip = next.offTrack ? 0.42 : 1.0;
   const rollingResistance = next.offTrack ? 1.6 : 0.08;
 
-  // Handle RUSH boost
+  // Handle RUSH / Nitro boost
   const wantsBoost = input.boost && next.rushMeter > 0;
   next.isBoosting = wantsBoost;
   if (wantsBoost) {
-    next.rushMeter = Math.max(0, next.rushMeter - 30 * dt);
+    next.rushMeter = Math.max(0, next.rushMeter - 25 * dt);
+  } else {
+    // Passive slight recharge
+    next.rushMeter = Math.min(100, next.rushMeter + 3.0 * dt);
   }
 
   // Engine Drive Force
-  const topSpeedMs = (spec.topSpeedKmh / 3.6) * (wantsBoost ? 1.25 : 1.0);
-  const accelFactor = (spec.acceleration / 100) * 12.0 * (wantsBoost ? 1.6 : 1.0);
+  const topSpeedMs = (spec.topSpeedKmh / 3.6) * (wantsBoost ? 1.35 : 1.0);
+  const accelFactor = (spec.acceleration / 100) * 14.0 * (wantsBoost ? 2.2 : 1.0);
 
   // Gears & RPM
   const gearRatio =

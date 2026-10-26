@@ -13,7 +13,8 @@ export interface CarVisual {
   bodyMat: StandardMaterial;
   taillightMat: StandardMaterial;
   headlightMat: StandardMaterial;
-  underglowMat?: StandardMaterial;
+  nitroFlames: Mesh[];
+  wreckSmoke: Mesh;
 }
 
 export class CarRenderer {
@@ -21,244 +22,386 @@ export class CarRenderer {
 
   constructor(private scene: Scene) {}
 
-  public getOrCreateCar(carState: CarSimState, colorHex = "#D4FF2A"): CarVisual {
+  public getOrCreateCar(carState: CarSimState, colorHex = "#D61826"): CarVisual {
     let visual = this.visualCars.get(carState.id);
     if (visual) return visual;
 
     const root = new Mesh(`car_${carState.id}`, this.scene);
     const bodyParts: Mesh[] = [];
 
-    // Materials
+    // --- High-Grade Automotive Materials ---
     const bodyMat = new StandardMaterial(`bodyMat_${carState.id}`, this.scene);
-    bodyMat.diffuseColor = Color3.FromHexString(colorHex);
-    bodyMat.specularColor = new Color3(0.65, 0.65, 0.65);
+    bodyMat.diffuseColor = Color3.FromHexString(colorHex || "#D61826");
+    bodyMat.specularColor = new Color3(0.75, 0.75, 0.8);
     bodyMat.specularPower = 64;
 
-    const carbonMat = new StandardMaterial(`carbonMat_${carState.id}`, this.scene);
-    carbonMat.diffuseColor = new Color3(0.06, 0.07, 0.09);
-    carbonMat.specularColor = new Color3(0.2, 0.2, 0.25);
-    carbonMat.specularPower = 32;
+    const satinBlackMat = new StandardMaterial(`satinBlack_${carState.id}`, this.scene);
+    satinBlackMat.diffuseColor = new Color3(0.08, 0.09, 0.11);
+    satinBlackMat.specularColor = new Color3(0.2, 0.2, 0.22);
+    satinBlackMat.specularPower = 32;
 
     const glassMat = new StandardMaterial("glassMat", this.scene);
-    glassMat.diffuseColor = new Color3(0.04, 0.07, 0.12);
+    glassMat.diffuseColor = new Color3(0.04, 0.05, 0.08);
     glassMat.specularColor = new Color3(0.9, 0.95, 1.0);
     glassMat.specularPower = 96;
-    glassMat.alpha = 0.88;
+    glassMat.alpha = 0.85;
 
     const chromeMat = new StandardMaterial("chromeMat", this.scene);
-    chromeMat.diffuseColor = new Color3(0.75, 0.75, 0.8);
-    chromeMat.specularColor = new Color3(0.9, 0.9, 0.95);
+    chromeMat.diffuseColor = new Color3(0.8, 0.82, 0.88);
+    chromeMat.specularColor = new Color3(0.95, 0.95, 1.0);
     chromeMat.specularPower = 128;
 
     const tireRubberMat = new StandardMaterial("tireRubberMat", this.scene);
-    tireRubberMat.diffuseColor = new Color3(0.1, 0.11, 0.12);
-    tireRubberMat.specularColor = new Color3(0.15, 0.15, 0.15);
+    tireRubberMat.diffuseColor = new Color3(0.1, 0.11, 0.13);
+    tireRubberMat.specularColor = new Color3(0.12, 0.12, 0.12);
 
-    const rimAlloyMat = new StandardMaterial("rimAlloyMat", this.scene);
-    rimAlloyMat.diffuseColor = new Color3(0.85, 0.88, 0.92);
-    rimAlloyMat.specularColor = new Color3(0.95, 0.95, 1.0);
-    rimAlloyMat.specularPower = 90;
+    const rimMuscleMat = new StandardMaterial("rimMuscleMat", this.scene);
+    rimMuscleMat.diffuseColor = new Color3(0.14, 0.15, 0.18); // Satin gunmetal black
+    rimMuscleMat.specularColor = new Color3(0.5, 0.52, 0.56);
+    rimMuscleMat.specularPower = 48;
 
     const caliperMat = new StandardMaterial("caliperMat", this.scene);
-    caliperMat.diffuseColor = new Color3(0.9, 0.1, 0.1);
-    caliperMat.emissiveColor = new Color3(0.35, 0.05, 0.05);
+    caliperMat.diffuseColor = new Color3(0.95, 0.1, 0.1); // Brembo Red
+    caliperMat.emissiveColor = new Color3(0.35, 0.02, 0.02);
 
-    // --- 1. AERODYNAMIC CHASSIS (Lower Body) ---
-    // Central chassis wedge
-    const lowerBody = MeshBuilder.CreateBox("lowerBody", { width: 1.88, height: 0.36, depth: 4.1 }, this.scene);
-    lowerBody.position.set(0, 0.34, 0);
+    // --- 1. DODGE CHALLENGER HELLCAT WIDEBODY CHASSIS ---
+    // Main lower muscular body block
+    const lowerBody = MeshBuilder.CreateBox("lowerBody", { width: 1.98, height: 0.44, depth: 4.8 }, this.scene);
+    lowerBody.position.set(0, 0.38, 0);
     lowerBody.material = bodyMat;
     lowerBody.parent = root;
     bodyParts.push(lowerBody);
 
-    // Sloped Hood / Nose
-    const hood = MeshBuilder.CreateBox("hood", { width: 1.78, height: 0.22, depth: 1.5 }, this.scene);
-    hood.position.set(0, 0.44, 1.25);
-    hood.rotation.x = 0.08; // sloped down to nose
+    // Satin black lower side skirts
+    const skirtL = MeshBuilder.CreateBox("skirtL", { width: 0.08, height: 0.09, depth: 2.7 }, this.scene);
+    skirtL.position.set(-1.02, 0.18, 0);
+    skirtL.material = satinBlackMat;
+    skirtL.parent = root;
+
+    const skirtR = MeshBuilder.CreateBox("skirtR", { width: 0.08, height: 0.09, depth: 2.7 }, this.scene);
+    skirtR.position.set(1.02, 0.18, 0);
+    skirtR.material = satinBlackMat;
+    skirtR.parent = root;
+
+    // --- 2. ICONIC WIDEBODY FLARED FENDERS (Front & Rear) ---
+    // Front Left Flare
+    const flareFL = MeshBuilder.CreateBox("flareFL", { width: 0.16, height: 0.36, depth: 1.15 }, this.scene);
+    flareFL.position.set(-1.06, 0.42, 1.42);
+    flareFL.material = bodyMat;
+    flareFL.parent = root;
+    bodyParts.push(flareFL);
+
+    // Front Right Flare
+    const flareFR = MeshBuilder.CreateBox("flareFR", { width: 0.16, height: 0.36, depth: 1.15 }, this.scene);
+    flareFR.position.set(1.06, 0.42, 1.42);
+    flareFR.material = bodyMat;
+    flareFR.parent = root;
+    bodyParts.push(flareFR);
+
+    // Rear Left Flare (Wide Muscle Stance)
+    const flareRL = MeshBuilder.CreateBox("flareRL", { width: 0.18, height: 0.38, depth: 1.22 }, this.scene);
+    flareRL.position.set(-1.08, 0.43, -1.35);
+    flareRL.material = bodyMat;
+    flareRL.parent = root;
+    bodyParts.push(flareRL);
+
+    // Rear Right Flare
+    const flareRR = MeshBuilder.CreateBox("flareRR", { width: 0.18, height: 0.38, depth: 1.22 }, this.scene);
+    flareRR.position.set(1.08, 0.43, -1.35);
+    flareRR.material = bodyMat;
+    flareRR.parent = root;
+    bodyParts.push(flareRR);
+
+    // --- 3. LONG MUSCLE HOOD WITH DUAL AIR SCOOPS ---
+    const hood = MeshBuilder.CreateBox("hood", { width: 1.94, height: 0.16, depth: 1.7 }, this.scene);
+    hood.position.set(0, 0.58, 1.42);
+    hood.rotation.x = 0.02; // slight muscle car rake
     hood.material = bodyMat;
     hood.parent = root;
     bodyParts.push(hood);
 
-    // Front Bumper & Low Splitter (Carbon Fiber)
-    const splitter = MeshBuilder.CreateBox("splitter", { width: 1.94, height: 0.06, depth: 0.45 }, this.scene);
-    splitter.position.set(0, 0.16, 2.05);
-    splitter.material = carbonMat;
-    splitter.parent = root;
-    bodyParts.push(splitter);
+    // Dual Hellcat Heat Extractor Scoops (Left & Right)
+    const scoopL = MeshBuilder.CreateBox("scoopL", { width: 0.32, height: 0.06, depth: 0.58 }, this.scene);
+    scoopL.position.set(-0.44, 0.68, 1.42);
+    scoopL.material = bodyMat;
+    scoopL.parent = root;
+    bodyParts.push(scoopL);
 
-    // Side Skirts (Carbon)
-    const skirtL = MeshBuilder.CreateBox("skirtL", { width: 0.12, height: 0.08, depth: 2.3 }, this.scene);
-    skirtL.position.set(-0.95, 0.18, 0);
-    skirtL.material = carbonMat;
-    skirtL.parent = root;
+    const scoopR = MeshBuilder.CreateBox("scoopR", { width: 0.32, height: 0.06, depth: 0.58 }, this.scene);
+    scoopR.position.set(0.44, 0.68, 1.42);
+    scoopR.material = bodyMat;
+    scoopR.parent = root;
+    bodyParts.push(scoopR);
 
-    const skirtR = MeshBuilder.CreateBox("skirtR", { width: 0.12, height: 0.08, depth: 2.3 }, this.scene);
-    skirtR.position.set(0.95, 0.18, 0);
-    skirtR.material = carbonMat;
-    skirtR.parent = root;
+    // Recessed Black Nostril Mesh on scoops
+    const scoopMouthL = MeshBuilder.CreateBox("scoopMouthL", { width: 0.28, height: 0.05, depth: 0.06 }, this.scene);
+    scoopMouthL.position.set(-0.44, 0.68, 1.72);
+    scoopMouthL.material = satinBlackMat;
+    scoopMouthL.parent = root;
 
-    // --- 2. CABIN & COCKPIT GREENHOUSE ---
-    // Glass Cockpit (Fastback shape)
-    const cabin = MeshBuilder.CreateBox("cabin", { width: 1.48, height: 0.42, depth: 1.85 }, this.scene);
-    cabin.position.set(0, 0.72, -0.15);
-    cabin.material = glassMat;
-    cabin.parent = root;
+    const scoopMouthR = MeshBuilder.CreateBox("scoopMouthR", { width: 0.28, height: 0.05, depth: 0.06 }, this.scene);
+    scoopMouthR.position.set(0.44, 0.68, 1.72);
+    scoopMouthR.material = satinBlackMat;
+    scoopMouthR.parent = root;
 
-    // Roof Panel (Carbon)
-    const roof = MeshBuilder.CreateBox("roof", { width: 1.35, height: 0.05, depth: 1.2 }, this.scene);
-    roof.position.set(0, 0.94, -0.2);
-    roof.material = carbonMat;
-    roof.parent = root;
+    // --- 4. SIGNATURE FRONT RECESSED GRILLE & QUAD HALO HEADLIGHTS ---
+    // Recessed black honeycomb grille frame
+    const grilleRecess = MeshBuilder.CreateBox("grilleRecess", { width: 1.92, height: 0.26, depth: 0.14 }, this.scene);
+    grilleRecess.position.set(0, 0.50, 2.30);
+    grilleRecess.material = satinBlackMat;
+    grilleRecess.parent = root;
 
-    // Windshield frame (Angled front)
-    const windshield = MeshBuilder.CreateBox("windshield", { width: 1.44, height: 0.42, depth: 0.55 }, this.scene);
-    windshield.position.set(0, 0.68, 0.62);
-    windshield.rotation.x = -0.42;
+    // Lower Front Bumper Intake & Front Splitter (Matte Black)
+    const lowerIntake = MeshBuilder.CreateBox("lowerIntake", { width: 1.45, height: 0.16, depth: 0.14 }, this.scene);
+    lowerIntake.position.set(0, 0.26, 2.30);
+    lowerIntake.material = satinBlackMat;
+    lowerIntake.parent = root;
+
+    const frontSplitter = MeshBuilder.CreateBox("frontSplitter", { width: 2.06, height: 0.05, depth: 0.42 }, this.scene);
+    frontSplitter.position.set(0, 0.16, 2.38);
+    frontSplitter.material = satinBlackMat;
+    frontSplitter.parent = root;
+
+    // Quad Round Halo Headlights (2 on left, 2 on right!)
+    const headlightMat = new StandardMaterial(`headMat_${carState.id}`, this.scene);
+    headlightMat.diffuseColor = new Color3(0.92, 0.96, 1.0);
+    headlightMat.emissiveColor = new Color3(1.0, 1.0, 1.0); // Bright LED Halo Glow
+
+    const projectorCenterMat = new StandardMaterial("projectorCenterMat", this.scene);
+    projectorCenterMat.diffuseColor = new Color3(0.12, 0.14, 0.18);
+    projectorCenterMat.specularColor = new Color3(0.9, 0.95, 1.0);
+
+    const quadHaloPositions = [
+      { x: -0.72, y: 0.52, z: 2.34 }, // Outer Left
+      { x: -0.46, y: 0.52, z: 2.34 }, // Inner Left
+      { x: 0.46, y: 0.52, z: 2.34 },  // Inner Right
+      { x: 0.72, y: 0.52, z: 2.34 },  // Outer Right
+    ];
+
+    quadHaloPositions.forEach((pos, idx) => {
+      // Glowing Outer Ring
+      const haloRing = MeshBuilder.CreateCylinder(`halo_${idx}`, {
+        diameter: 0.20,
+        height: 0.04,
+        tessellation: 20,
+      }, this.scene);
+      haloRing.rotation.x = Math.PI / 2;
+      haloRing.position.set(pos.x, pos.y, pos.z);
+      haloRing.material = headlightMat;
+      haloRing.parent = root;
+
+      // Dark Projector Center Lens
+      const lens = MeshBuilder.CreateCylinder(`lens_${idx}`, {
+        diameter: 0.12,
+        height: 0.05,
+        tessellation: 16,
+      }, this.scene);
+      lens.rotation.x = Math.PI / 2;
+      lens.position.set(pos.x, pos.y, pos.z + 0.01);
+      lens.material = projectorCenterMat;
+      lens.parent = root;
+    });
+
+    // SRT Badge Accent on Grille
+    const srtBadge = MeshBuilder.CreateBox("srtBadge", { width: 0.14, height: 0.05, depth: 0.02 }, this.scene);
+    srtBadge.position.set(0.24, 0.52, 2.37);
+    srtBadge.material = chromeMat;
+    srtBadge.parent = root;
+
+    // --- 5. COUPE GREENHOUSE, PILLARS & SIDE MIRRORS ---
+    // Angled Windshield
+    const windshield = MeshBuilder.CreateBox("windshield", { width: 1.60, height: 0.44, depth: 0.65 }, this.scene);
+    windshield.position.set(0, 0.78, 0.62);
+    windshield.rotation.x = -0.52;
     windshield.material = glassMat;
     windshield.parent = root;
 
-    // --- 3. REAR GT WING & DIFFUSER ---
-    // Elevated GT Wing Blade
-    const wingBlade = MeshBuilder.CreateBox("wingBlade", { width: 1.92, height: 0.05, depth: 0.38 }, this.scene);
-    wingBlade.position.set(0, 0.98, -1.92);
-    wingBlade.material = carbonMat;
-    wingBlade.parent = root;
+    // Fastback Roof
+    const roof = MeshBuilder.CreateBox("roof", { width: 1.55, height: 0.05, depth: 1.6 }, this.scene);
+    roof.position.set(0, 0.98, -0.16);
+    roof.material = bodyMat;
+    roof.parent = root;
+    bodyParts.push(roof);
 
-    // Wing End-plates
-    const endplateL = MeshBuilder.CreateBox("endplateL", { width: 0.04, height: 0.22, depth: 0.42 }, this.scene);
-    endplateL.position.set(-0.96, 0.98, -1.92);
-    endplateL.material = carbonMat;
-    endplateL.parent = root;
+    // Rear Sloped Window
+    const rearWindow = MeshBuilder.CreateBox("rearWindow", { width: 1.52, height: 0.44, depth: 0.68 }, this.scene);
+    rearWindow.position.set(0, 0.78, -0.96);
+    rearWindow.rotation.x = 0.52;
+    rearWindow.material = glassMat;
+    rearWindow.parent = root;
 
-    const endplateR = MeshBuilder.CreateBox("endplateR", { width: 0.04, height: 0.22, depth: 0.42 }, this.scene);
-    endplateR.position.set(0.96, 0.98, -1.92);
-    endplateR.material = carbonMat;
-    endplateR.parent = root;
+    // Side Windows
+    const cabinSides = MeshBuilder.CreateBox("cabinSides", { width: 1.54, height: 0.36, depth: 1.6 }, this.scene);
+    cabinSides.position.set(0, 0.78, -0.16);
+    cabinSides.material = glassMat;
+    cabinSides.parent = root;
 
-    // Wing Mounting Struts
-    const strutL = MeshBuilder.CreateBox("strutL", { width: 0.04, height: 0.38, depth: 0.08 }, this.scene);
-    strutL.position.set(-0.45, 0.78, -1.86);
-    strutL.rotation.x = -0.25;
-    strutL.material = carbonMat;
-    strutL.parent = root;
+    // Side Mirrors in Body Color
+    const mirrorL = MeshBuilder.CreateBox("mirrorL", { width: 0.16, height: 0.10, depth: 0.14 }, this.scene);
+    mirrorL.position.set(-1.02, 0.74, 0.50);
+    mirrorL.material = bodyMat;
+    mirrorL.parent = root;
 
-    const strutR = MeshBuilder.CreateBox("strutR", { width: 0.04, height: 0.38, depth: 0.08 }, this.scene);
-    strutR.position.set(0.45, 0.78, -1.86);
-    strutR.rotation.x = -0.25;
-    strutR.material = carbonMat;
-    strutR.parent = root;
+    const mirrorR = MeshBuilder.CreateBox("mirrorR", { width: 0.16, height: 0.10, depth: 0.14 }, this.scene);
+    mirrorR.position.set(1.02, 0.74, 0.50);
+    mirrorR.material = bodyMat;
+    mirrorR.parent = root;
 
-    // Rear Aerodynamic Diffuser & Exhaust Tips
-    const diffuser = MeshBuilder.CreateBox("diffuser", { width: 1.7, height: 0.12, depth: 0.32 }, this.scene);
-    diffuser.position.set(0, 0.18, -2.05);
-    diffuser.material = carbonMat;
-    diffuser.parent = root;
+    // --- 6. REAR TRUNK, DUCKTAIL SPOILER, AND CHALLENGER TAILLIGHTS ---
+    // Rear Trunk Deck
+    const trunk = MeshBuilder.CreateBox("trunk", { width: 1.88, height: 0.15, depth: 0.9 }, this.scene);
+    trunk.position.set(0, 0.60, -1.72);
+    trunk.material = bodyMat;
+    trunk.parent = root;
+    bodyParts.push(trunk);
 
-    const exhaustL = MeshBuilder.CreateCylinder("exhaustL", { diameter: 0.12, height: 0.15 }, this.scene);
+    // Satin Black Ducktail Lip Spoiler
+    const spoiler = MeshBuilder.CreateBox("ducktailSpoiler", { width: 1.94, height: 0.08, depth: 0.22 }, this.scene);
+    spoiler.position.set(0, 0.70, -2.18);
+    spoiler.material = satinBlackMat;
+    spoiler.parent = root;
+
+    // Recessed Black Rear Fascia
+    const rearFascia = MeshBuilder.CreateBox("rearFascia", { width: 1.88, height: 0.26, depth: 0.10 }, this.scene);
+    rearFascia.position.set(0, 0.50, -2.38);
+    rearFascia.material = satinBlackMat;
+    rearFascia.parent = root;
+
+    // Twin Rectangular Dodge Challenger LED Taillight Halos
+    const taillightMat = new StandardMaterial(`tailMat_${carState.id}`, this.scene);
+    taillightMat.diffuseColor = new Color3(1.0, 0.08, 0.08);
+    taillightMat.emissiveColor = new Color3(0.9, 0.05, 0.05);
+
+    const tailL = MeshBuilder.CreateBox("tailL", { width: 0.65, height: 0.14, depth: 0.04 }, this.scene);
+    tailL.position.set(-0.52, 0.50, -2.43);
+    tailL.material = taillightMat;
+    tailL.parent = root;
+
+    const tailR = MeshBuilder.CreateBox("tailR", { width: 0.65, height: 0.14, depth: 0.04 }, this.scene);
+    tailR.position.set(0.52, 0.50, -2.43);
+    tailR.material = taillightMat;
+    tailR.parent = root;
+
+    // Dual Massive Chrome Exhaust Tips
+    const exhaustL = MeshBuilder.CreateCylinder("exhaustL", { diameter: 0.16, height: 0.18 }, this.scene);
     exhaustL.rotation.x = Math.PI / 2;
-    exhaustL.position.set(-0.35, 0.24, -2.12);
+    exhaustL.position.set(-0.52, 0.22, -2.44);
     exhaustL.material = chromeMat;
     exhaustL.parent = root;
 
-    const exhaustR = MeshBuilder.CreateCylinder("exhaustR", { diameter: 0.12, height: 0.15 }, this.scene);
+    const exhaustR = MeshBuilder.CreateCylinder("exhaustR", { diameter: 0.16, height: 0.18 }, this.scene);
     exhaustR.rotation.x = Math.PI / 2;
-    exhaustR.position.set(0.35, 0.24, -2.12);
+    exhaustR.position.set(0.52, 0.22, -2.44);
     exhaustR.material = chromeMat;
     exhaustR.parent = root;
 
-    // --- 4. LIGHTING: LED HEADLIGHTS & REAR TAILLIGHT BAR ---
-    // Dual Projector Headlights
-    const headlightMat = new StandardMaterial(`headMat_${carState.id}`, this.scene);
-    headlightMat.diffuseColor = new Color3(0.9, 0.98, 1.0);
-    headlightMat.emissiveColor = new Color3(0.85, 0.95, 1.0);
+    // --- 7. NITRO EXHAUST BOOST FLAMES ---
+    const nitroMat = new StandardMaterial(`nitroMat_${carState.id}`, this.scene);
+    nitroMat.diffuseColor = new Color3(0.2, 0.7, 1.0);
+    nitroMat.emissiveColor = new Color3(0.3, 0.85, 1.0);
+    nitroMat.alpha = 0.9;
 
-    const headlightL = MeshBuilder.CreateBox("headlightL", { width: 0.38, height: 0.12, depth: 0.14 }, this.scene);
-    headlightL.position.set(-0.64, 0.38, 2.02);
-    headlightL.material = headlightMat;
-    headlightL.parent = root;
+    const nitroL = MeshBuilder.CreateCylinder(`nitroL_${carState.id}`, {
+      diameterTop: 0.04,
+      diameterBottom: 0.22,
+      height: 0.9,
+    }, this.scene);
+    nitroL.rotation.x = Math.PI / 2;
+    nitroL.position.set(-0.52, 0.22, -2.95);
+    nitroL.material = nitroMat;
+    nitroL.parent = root;
+    nitroL.isVisible = false;
 
-    const headlightR = MeshBuilder.CreateBox("headlightR", { width: 0.38, height: 0.12, depth: 0.14 }, this.scene);
-    headlightR.position.set(0.64, 0.38, 2.02);
-    headlightR.material = headlightMat;
-    headlightR.parent = root;
+    const nitroR = MeshBuilder.CreateCylinder(`nitroR_${carState.id}`, {
+      diameterTop: 0.04,
+      diameterBottom: 0.22,
+      height: 0.9,
+    }, this.scene);
+    nitroR.rotation.x = Math.PI / 2;
+    nitroR.position.set(0.52, 0.22, -2.95);
+    nitroR.material = nitroMat;
+    nitroR.parent = root;
+    nitroR.isVisible = false;
 
-    // Continuous Full-Width Rear LED Light Bar
-    const taillightMat = new StandardMaterial(`tailMat_${carState.id}`, this.scene);
-    taillightMat.diffuseColor = new Color3(1.0, 0.05, 0.08);
-    taillightMat.emissiveColor = new Color3(0.8, 0.05, 0.05);
+    // --- 8. WRECK DAMAGE SMOKE ---
+    const wreckSmokeMat = new StandardMaterial(`smokeMat_${carState.id}`, this.scene);
+    wreckSmokeMat.diffuseColor = new Color3(0.15, 0.15, 0.15);
+    wreckSmokeMat.emissiveColor = new Color3(0.9, 0.3, 0.05); // smoldering ember
+    wreckSmokeMat.alpha = 0.75;
 
-    const taillights = MeshBuilder.CreateBox("taillights", { width: 1.76, height: 0.11, depth: 0.08 }, this.scene);
-    taillights.position.set(0, 0.45, -2.06);
-    taillights.material = taillightMat;
-    taillights.parent = root;
+    const wreckSmoke = MeshBuilder.CreateSphere(`wreckSmoke_${carState.id}`, { diameter: 1.2 }, this.scene);
+    wreckSmoke.position.set(0, 1.1, 1.4);
+    wreckSmoke.material = wreckSmokeMat;
+    wreckSmoke.parent = root;
+    wreckSmoke.isVisible = false;
 
-    // Underglow Neon Bar
-    const underglowMat = new StandardMaterial(`underglow_${carState.id}`, this.scene);
-    underglowMat.emissiveColor = Color3.FromHexString(colorHex).scale(0.8);
-    underglowMat.diffuseColor = Color3.Black();
-
-    const underglow = MeshBuilder.CreateBox("underglow", { width: 1.5, height: 0.02, depth: 2.6 }, this.scene);
-    underglow.position.set(0, 0.08, 0);
-    underglow.material = underglowMat;
-    underglow.parent = root;
-
-    // --- 5. DETAILED SPORTS WHEELS (Tires + 5-Spoke Rims + Calipers) ---
+    // --- 9. MEATY WIDE RADIAL MUSCLE WHEELS & RED BREMBO CALIPERS ---
     const wheels: Mesh[] = [];
     const frontWheels: Mesh[] = [];
     const wheelPositions = [
-      { x: -0.96, z: 1.32, isFront: true },  // Front Left
-      { x: 0.96, z: 1.32, isFront: true },   // Front Right
-      { x: -0.96, z: -1.28, isFront: false }, // Rear Left
-      { x: 0.96, z: -1.28, isFront: false },  // Rear Right
+      { x: -1.02, z: 1.42, isFront: true, tireWidth: 0.33, diameter: 0.70 },   // Front Left
+      { x: 1.02, z: 1.42, isFront: true, tireWidth: 0.33, diameter: 0.70 },    // Front Right
+      { x: -1.06, z: -1.35, isFront: false, tireWidth: 0.38, diameter: 0.72 }, // Rear Left (Extra Wide Muscle Radial)
+      { x: 1.06, z: -1.35, isFront: false, tireWidth: 0.38, diameter: 0.72 },  // Rear Right (Extra Wide Muscle Radial)
     ];
 
     wheelPositions.forEach((wp, idx) => {
-      // Wheel Hub Pivot
-      const hub = new Mesh(`wheel_hub_${carState.id}_${idx}`, this.scene);
-      hub.position.set(wp.x, 0.33, wp.z);
+      // Hub Pivot
+      const hub = new Mesh(`hub_${carState.id}_${idx}`, this.scene);
+      hub.position.set(wp.x, 0.34, wp.z);
       hub.parent = root;
 
-      // Outer Rubber Tire
+      // Beefy Outer Rubber Tire
       const tire = MeshBuilder.CreateCylinder(`tire_${idx}`, {
-        diameter: 0.68,
-        height: 0.30,
+        diameter: wp.diameter,
+        height: wp.tireWidth,
         tessellation: 24,
       }, this.scene);
       tire.rotation.z = Math.PI / 2;
       tire.material = tireRubberMat;
       tire.parent = hub;
 
-      // Inner Alloy Rim (Chrome/Alloy)
+      // Satin Gunmetal 5-Spoke Muscle Rim
       const rim = MeshBuilder.CreateCylinder(`rim_${idx}`, {
-        diameter: 0.52,
-        height: 0.31,
+        diameter: wp.diameter * 0.76,
+        height: wp.tireWidth + 0.01,
         tessellation: 20,
       }, this.scene);
       rim.rotation.z = Math.PI / 2;
-      rim.material = rimAlloyMat;
+      rim.material = rimMuscleMat;
       rim.parent = hub;
 
-      // Center Spoke Star
-      const spoke = MeshBuilder.CreateBox(`spoke_${idx}`, {
-        width: 0.32,
-        height: 0.44,
-        depth: 0.44,
+      // 5-Spoke Cross
+      const star1 = MeshBuilder.CreateBox(`spoke1_${idx}`, {
+        width: wp.tireWidth + 0.02,
+        height: 0.12,
+        depth: wp.diameter * 0.72,
       }, this.scene);
-      spoke.material = carbonMat;
-      spoke.parent = hub;
+      star1.material = rimMuscleMat;
+      star1.parent = hub;
 
-      // Red Brake Caliper
-      const caliper = MeshBuilder.CreateBox(`caliper_${idx}`, {
-        width: 0.14,
-        height: 0.16,
-        depth: 0.18,
+      const star2 = MeshBuilder.CreateBox(`spoke2_${idx}`, {
+        width: wp.tireWidth + 0.02,
+        height: wp.diameter * 0.72,
+        depth: 0.12,
       }, this.scene);
-      caliper.position.set(wp.x > 0 ? -0.1 : 0.1, 0.14, 0.08);
+      star2.material = rimMuscleMat;
+      star2.parent = hub;
+
+      // Red Brembo Brake Caliper
+      const caliper = MeshBuilder.CreateBox(`caliper_${idx}`, {
+        width: 0.12,
+        height: 0.22,
+        depth: 0.12,
+      }, this.scene);
+      caliper.position.set(wp.x > 0 ? -0.10 : 0.10, 0.15, 0);
       caliper.material = caliperMat;
       caliper.parent = hub;
 
-      wheels.push(hub);
-      if (wp.isFront) frontWheels.push(hub);
+      wheels.push(tire);
+      if (wp.isFront) {
+        frontWheels.push(hub);
+      }
     });
 
     visual = {
@@ -269,7 +412,8 @@ export class CarRenderer {
       bodyMat,
       taillightMat,
       headlightMat,
-      underglowMat,
+      nitroFlames: [nitroL, nitroR],
+      wreckSmoke,
     };
 
     this.visualCars.set(carState.id, visual);
@@ -288,13 +432,13 @@ export class CarRenderer {
     // Heading yaw rotation (aligned to +Z forward)
     visual.root.rotation.y = car.heading;
 
-    // Body roll during heavy steering / drifting
-    const roll = -(car.lateralVelocity / 18) * 0.10;
+    // Body roll during heavy steering / power slides
+    const roll = -(car.lateralVelocity / 20) * 0.08;
     for (const part of visual.bodyParts) {
       part.rotation.z = roll;
     }
 
-    // Wheel spin (rotation around local X inside the hub)
+    // Wheel spin
     const spinDelta = (car.speedKmh / 3.6) * 0.08;
     for (const w of visual.wheels) {
       w.rotation.x += spinDelta;
@@ -306,11 +450,30 @@ export class CarRenderer {
       fw.rotation.y = steerAngle;
     }
 
-    // Intense brake light glow
+    // Brake light intensification
     if (isBraking) {
-      visual.taillightMat.emissiveColor = new Color3(1.0, 0.15, 0.15);
+      visual.taillightMat.emissiveColor = new Color3(1.0, 0.2, 0.2);
     } else {
-      visual.taillightMat.emissiveColor = new Color3(0.5, 0.02, 0.02);
+      visual.taillightMat.emissiveColor = new Color3(0.7, 0.04, 0.04);
+    }
+
+    // Nitro exhaust flame visibility & flicker
+    const showNitro = car.isBoosting && !car.isWrecked;
+    for (const flame of visual.nitroFlames) {
+      flame.isVisible = showNitro;
+      if (showNitro) {
+        const flicker = 0.85 + Math.random() * 0.35;
+        flame.scaling.set(flicker, flicker, flicker * 1.2);
+      }
+    }
+
+    // Wreck damage smoke
+    if (visual.wreckSmoke) {
+      visual.wreckSmoke.isVisible = car.isWrecked;
+      if (car.isWrecked) {
+        const pulse = 1.0 + Math.sin(Date.now() * 0.01) * 0.25;
+        visual.wreckSmoke.scaling.set(pulse, pulse * 1.4, pulse);
+      }
     }
   }
 

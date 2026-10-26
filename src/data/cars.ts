@@ -2,6 +2,26 @@ import type { CarSpec } from "../game/sim/types";
 
 export const CARS: CarSpec[] = [
   {
+    id: "hellcat_srt",
+    name: "HELLCAT SRT",
+    class: "WIDEBODY",
+    mass: 1950,
+    topSpeedKmh: 320,
+    acceleration: 96,
+    handling: 85,
+    driftFactor: 1.35,
+    downforce: 0.95,
+    gearRatios: [3.9, 2.45, 1.75, 1.3, 0.98, 0.82],
+    driveType: "RWD",
+    colors: ["#D61826", "#11141A", "#FFFFFF", "#FF5E00"],
+    stats: {
+      topSpeed: 96,
+      accel: 95,
+      handling: 85,
+      rushRate: 98,
+    },
+  },
+  {
     id: "apex_gt",
     name: "APEX GT",
     class: "SPORT",

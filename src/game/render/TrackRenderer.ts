@@ -169,11 +169,11 @@ export class TrackRenderer {
     rightCurb.material = curbMat;
     this.meshes.push(rightCurb);
 
-    // --- Barriers ---
+    // --- Concrete Barrier Retaining Walls ---
     const barrierMat = new StandardMaterial("barrierMat", this.scene);
-    barrierMat.diffuseColor = new Color3(0.38, 0.42, 0.48);
-    barrierMat.specularColor = new Color3(0.55, 0.55, 0.6);
-    barrierMat.specularPower = 48;
+    barrierMat.diffuseColor = new Color3(0.72, 0.74, 0.78);
+    barrierMat.specularColor = new Color3(0.15, 0.15, 0.15);
+    barrierMat.specularPower = 24;
     this.materials.push(barrierMat);
 
     const leftBarrier = MeshBuilder.CreateRibbon(
@@ -205,7 +205,7 @@ export class TrackRenderer {
   private buildSkyDome(track: TrackSpline): void {
     const skyDome = MeshBuilder.CreateSphere(
       "skyDome",
-      { diameter: 1400, segments: 16, sideOrientation: Mesh.BACKSIDE },
+      { diameter: 3200, segments: 16, sideOrientation: Mesh.BACKSIDE },
       this.scene
     );
     skyDome.position.set(0, 0, 0);
@@ -360,7 +360,7 @@ export class TrackRenderer {
     const theme = track.data.theme;
 
     // Ground plane
-    const ground = MeshBuilder.CreateGround("ground", { width: 1200, height: 1200 }, this.scene);
+    const ground = MeshBuilder.CreateGround("ground", { width: 3200, height: 3200 }, this.scene);
     ground.position.y = -0.05;
     const groundMat = new StandardMaterial("groundMat", this.scene);
 
@@ -418,7 +418,7 @@ export class TrackRenderer {
 
   private buildCoastalIslands(): void {
     // Water plane with reflective sunset sheen
-    const water = MeshBuilder.CreateGround("water", { width: 1400, height: 1400 }, this.scene);
+    const water = MeshBuilder.CreateGround("water", { width: 3600, height: 3600 }, this.scene);
     water.position.y = -1.2;
     const waterMat = new StandardMaterial("waterMat", this.scene);
     waterMat.diffuseColor = new Color3(0.08, 0.16, 0.28);
@@ -427,6 +427,31 @@ export class TrackRenderer {
     water.material = waterMat;
     this.meshes.push(water);
     this.materials.push(waterMat);
+
+    // Distant Mountain Ranges matching reference photo horizon
+    const mountainMat = new StandardMaterial("mountainMat", this.scene);
+    mountainMat.diffuseColor = new Color3(0.25, 0.21, 0.26);
+    mountainMat.specularColor = new Color3(0.05, 0.05, 0.05);
+    this.materials.push(mountainMat);
+
+    for (let i = 0; i < 28; i++) {
+      const angle = (i / 28) * Math.PI * 2;
+      const dist = 1150 + (i % 4) * 160;
+      const mx = Math.cos(angle) * dist;
+      const mz = Math.sin(angle) * dist;
+      const h = 210 + ((i * 37) % 160);
+      const diam = 380 + ((i * 19) % 220);
+
+      const mountain = MeshBuilder.CreateCylinder(`mtn_${i}`, {
+        height: h,
+        diameterTop: 30,
+        diameterBottom: diam,
+        tessellation: 9,
+      }, this.scene);
+      mountain.position.set(mx, h * 0.5 - 25, mz);
+      mountain.material = mountainMat;
+      this.meshes.push(mountain);
+    }
   }
 
   private buildCanyonMesas(track: TrackSpline): void {

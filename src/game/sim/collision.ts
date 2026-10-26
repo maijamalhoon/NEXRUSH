@@ -11,12 +11,22 @@ export interface CollisionEvent {
   point: { x: number; z: number };
 }
 
+export interface TakedownEvent {
+  victimId: string;
+  victimName: string;
+  attackerId: string;
+  attackerName: string;
+  isPlayerAttacker: boolean;
+  isPlayerVictim: boolean;
+}
+
 /**
- * Resolves car-to-car collisions with elastic impulse and position separation.
+ * Resolves car-to-car collisions with elastic impulse, vehicular combat damage, and takedowns.
  */
 export function resolveCarCollisions(
   cars: CarSimState[],
-  onCollision?: (event: CollisionEvent) => void
+  onCollision?: (event: CollisionEvent) => void,
+  onTakedown?: (event: TakedownEvent) => void
 ): void {
   const n = cars.length;
   const minDist = CAR_RADIUS * 2;
@@ -51,9 +61,9 @@ export function resolveCarCollisions(
         const rvz = b.velocity.z - a.velocity.z;
         const velAlongNormal = rvx * nx + rvz * nz;
 
-        // Only resolve if velocities are separating
+        // Only resolve if velocities are closing towards each other
         if (velAlongNormal < 0) {
-          const restitution = 0.35; // bounce factor (motorsport bumper contact)
+          const restitution = 0.40;
           const impulseMag = -(1 + restitution) * velAlongNormal * 0.5;
 
           a.velocity.x -= impulseMag * nx;
@@ -61,11 +71,76 @@ export function resolveCarCollisions(
           b.velocity.x += impulseMag * nx;
           b.velocity.z += impulseMag * nz;
 
+          // Combat Damage Calculation
+          const relSpeed = Math.abs(velAlongNormal);
+          if (relSpeed > 2.5) {
+            let dmgA = (relSpeed - 2.5) * 4.5;
+            let dmgB = (relSpeed - 2.5) * 4.5;
+
+            // Nitro Ram multiplier
+            if (a.isBoosting && !b.isBoosting) {
+              dmgB *= 2.4;
+              dmgA *= 0.3; // Attacker has ramming shield
+            } else if (b.isBoosting && !a.isBoosting) {
+              dmgA *= 2.4;
+              dmgB *= 0.3;
+            }
+
+            if (!a.isWrecked) a.health = Math.max(0, a.health - dmgA);
+            if (!b.isWrecked) b.health = Math.max(0, b.health - dmgB);
+
+            // Check for Takedown on car B
+            if (b.health <= 0 && !b.isWrecked) {
+              b.isWrecked = true;
+              b.wreckTimer = 4.0;
+              b.angularVelocity += (nx > 0 ? 6.5 : -6.5);
+              b.velocity.x += nx * 12;
+              b.velocity.z += nz * 12;
+              if (onTakedown) {
+                onTakedown({
+                  victimId: b.id,
+                  victimName: b.name,
+                  attackerId: a.id,
+                  attackerName: a.name,
+                  isPlayerAttacker: a.isPlayer,
+                  isPlayerVictim: b.isPlayer,
+                });
+              }
+              if (a.isPlayer) {
+                a.takedowns++;
+                a.rushMeter = 100; // 100% full Nitro refill reward!
+              }
+            }
+
+            // Check for Takedown on car A
+            if (a.health <= 0 && !a.isWrecked) {
+              a.isWrecked = true;
+              a.wreckTimer = 4.0;
+              a.angularVelocity += (nx > 0 ? -6.5 : 6.5);
+              a.velocity.x -= nx * 12;
+              a.velocity.z -= nz * 12;
+              if (onTakedown) {
+                onTakedown({
+                  victimId: a.id,
+                  victimName: a.name,
+                  attackerId: b.id,
+                  attackerName: b.name,
+                  isPlayerAttacker: b.isPlayer,
+                  isPlayerVictim: a.isPlayer,
+                });
+              }
+              if (b.isPlayer) {
+                b.takedowns++;
+                b.rushMeter = 100;
+              }
+            }
+          }
+
           if (onCollision) {
             onCollision({
               carA: a.id,
               carB: b.id,
-              intensity: Math.min(1.0, Math.abs(velAlongNormal) / 25),
+              intensity: Math.min(1.0, Math.abs(velAlongNormal) / 22),
               point: {
                 x: a.position.x + nx * CAR_RADIUS,
                 z: a.position.z + nz * CAR_RADIUS,
@@ -79,14 +154,13 @@ export function resolveCarCollisions(
 }
 
 /**
- * Keeps cars inside track barrier envelope.
- * Returns true if a barrier hit occurred.
+ * Keeps cars inside track barrier envelope and handles high-speed wall damage.
  */
 export function resolveTrackBarriers(car: CarSimState, track: TrackSpline): boolean {
   const info = track.findNearest(car.position.x, car.position.z, car.lapProgress);
   car.offTrack = info.isOffTrack;
 
-  // Maximum outer barrier limit (track width / 2 + 3m run-off)
+  // Maximum outer barrier limit (track width / 2 + 3.2m run-off)
   const maxBarrierDist = track.defaultWidth * 0.5 + 3.2;
 
   if (Math.abs(info.signedDistance) > maxBarrierDist) {
@@ -103,6 +177,15 @@ export function resolveTrackBarriers(car: CarSimState, track: TrackSpline): bool
     if (vn * sign > 0) {
       car.velocity.x -= 1.35 * vn * sample.normal.x;
       car.velocity.z -= 1.35 * vn * sample.normal.z;
+
+      // Barrier impact damage if high speed
+      if (Math.abs(vn) > 10 && !car.isWrecked) {
+        car.health = Math.max(0, car.health - (Math.abs(vn) - 10) * 3.5);
+        if (car.health <= 0) {
+          car.isWrecked = true;
+          car.wreckTimer = 3.5;
+        }
+      }
     }
 
     return true;

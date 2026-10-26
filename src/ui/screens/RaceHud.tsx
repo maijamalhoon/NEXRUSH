@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import type { RaceSimState } from "../../game/sim/types";
 import type { TrackSpline } from "../../game/sim/track";
 import { Minimap } from "../components/Minimap";
-import { Pause, Zap } from "lucide-react";
+import { Pause, Shield, Zap } from "lucide-react";
 
 interface RaceHudProps {
   raceState: RaceSimState;
@@ -53,6 +53,16 @@ export const RaceHud: React.FC<RaceHudProps> = ({
       return () => clearTimeout(timer);
     }
   }, [lastLapTime]);
+
+  // Takedown announcement banner trigger
+  const [takedownBanner, setTakedownBanner] = useState<string | null>(null);
+  useEffect(() => {
+    if (raceState.lastTakedownMessage) {
+      setTakedownBanner(raceState.lastTakedownMessage);
+      const timer = setTimeout(() => setTakedownBanner(null), 2400);
+      return () => clearTimeout(timer);
+    }
+  }, [raceState.lastTakedownMessage, raceState.tick]);
 
   const speedKmh = player?.speedKmh ?? 0;
   const gear = player?.gear ?? 1;
@@ -281,6 +291,35 @@ export const RaceHud: React.FC<RaceHudProps> = ({
         </div>
       )}
 
+      {/* Takedown / Wreck Announcement Overlay */}
+      {takedownBanner && (
+        <div
+          style={{
+            position: "absolute",
+            top: "24%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            backgroundColor:
+              takedownBanner === "TAKEDOWN!" ? "rgba(212, 255, 42, 0.95)" : "rgba(255, 77, 46, 0.95)",
+            color: "#0B0D12",
+            padding: "8px 26px",
+            borderRadius: "var(--radius-md)",
+            fontFamily: "var(--font-display)",
+            fontSize: "clamp(26px, 5vw, 38px)",
+            fontWeight: 900,
+            letterSpacing: "2px",
+            boxShadow:
+              takedownBanner === "TAKEDOWN!"
+                ? "0 0 35px rgba(212, 255, 42, 0.7)"
+                : "0 0 35px rgba(255, 77, 46, 0.7)",
+            pointerEvents: "none",
+            zIndex: 60,
+          }}
+        >
+          {takedownBanner}
+        </div>
+      )}
+
       {/* Bottom Area: Speedometer, Gear, Rush Meter, and Mobile Touch Controls */}
       <footer
         style={{
@@ -429,6 +468,46 @@ export const RaceHud: React.FC<RaceHudProps> = ({
                   width: `${rushMeter}%`,
                   backgroundColor: "var(--accent-rush)",
                   boxShadow: rushMeter > 20 ? "0 0 10px var(--accent-rush)" : "none",
+                  transition: "width 100ms linear",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Armor / Health Bar */}
+          <div style={{ width: "100%", marginTop: "6px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: "10px",
+                color: (player?.health ?? 100) < 35 ? "var(--accent-danger)" : "var(--accent-primary)",
+                fontWeight: 700,
+                marginBottom: "3px",
+              }}
+            >
+              <span style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                <Shield size={11} /> ARMOR
+              </span>
+              <span>{Math.round(player?.health ?? 100)}%</span>
+            </div>
+            <div
+              style={{
+                height: "5px",
+                width: "100%",
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                borderRadius: "var(--radius-pill)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${Math.max(0, player?.health ?? 100)}%`,
+                  backgroundColor:
+                    (player?.health ?? 100) < 35 ? "var(--accent-danger)" : "var(--accent-primary)",
+                  boxShadow:
+                    (player?.health ?? 100) < 35 ? "0 0 10px var(--accent-danger)" : "none",
                   transition: "width 100ms linear",
                 }}
               />
