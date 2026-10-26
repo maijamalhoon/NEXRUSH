@@ -12,9 +12,10 @@ export interface Telemetry {
   lap: number;
   position: number;
   offTrack: boolean;
+  driftAngle: number;
 }
 type Control = "left" | "right" | "accelerate" | "brake" | "handbrake";
-type Opponent = { mesh: Mesh; progress: number; speed: number; wheels: Mesh[] };
+type Opponent = { mesh: Mesh; progress: number; speed: number; lane: number; wheels: Mesh[] };
 
 const scales = { low: 0.62, medium: 0.8, high: 1 };
 const RX = 34;
@@ -35,6 +36,7 @@ export class RacingScene {
   private controls = new Set<Control>();
   private mode: QualityMode = "auto";
   private speed = 0;
+  private lateralVelocity = 0;
   private heading = -Math.PI / 2;
   private elapsed = 0;
   private lap = 1;
@@ -158,25 +160,50 @@ export class RacingScene {
     const steering = Number(right) - Number(left);
     const speedFactor = Math.min(1, Math.abs(this.speed) / 24);
     this.heading += steering * speedFactor * dt * (hand ? 1.85 : 1.22) * Math.sign(this.speed || 1);
+    const speedFactor = Math.min(1, Math.abs(this.speed) / 24);
+    if (steering !== 0 && speedFactor > 0.1) {
+      this.lateralVelocity += steering * speedFactor * (hand ? 15 : 4.2) * dt * Math.sign(this.speed || 1);
+    }
+    this.lateralVelocity = clamp(
+      this.lateralVelocity * Math.exp(-dt * (hand ? 0.62 : 1.65)),
+      -18,
+      18
+    );
     const forward = new Vector3(Math.sin(this.heading), 0, Math.cos(this.heading));
+    const side = new Vector3(Math.cos(this.heading), 0, -Math.sin(this.heading));
     this.car.position.addInPlace(forward.scale(this.speed * dt / 3.6));
+    this.car.position.addInPlace(side.scale(this.lateralVelocity * dt));
     this.car.rotation.y = this.heading;
 
     const trackAngle = Math.atan2(this.car.position.z / RZ, this.car.position.x / RX);
     const nearest = new Vector3(RX * Math.cos(trackAngle), 0, RZ * Math.sin(trackAngle));
     const distanceFromCentre = Math.hypot(this.car.position.x - nearest.x, this.car.position.z - nearest.z);
     this.offTrack = distanceFromCentre > ROAD_HALF_WIDTH - 1.0;
-    if (this.offTrack) this.speed -= Math.sign(this.speed || 1) * 26 * dt;
+    if (this.offTrack) {
+      // Grass should slow the car down, never accelerate a stopped car backwards.
+      this.speed *= Math.exp(-2.5 * dt);
+      this.lateralVelocity *= Math.exp(-4 * dt);
+    }
 
-    // Lap progress is measured from the start/finish line at the top of the circuit.
+    // Complete a lap only when crossing the line in the forward race direction.
+    const previousProgress = this.lastProgress;
     this.lapProgress = positiveAngle(trackAngle - Math.PI / 2);
-    if (this.lapProgress > TAU - 0.12 && this.lastProgress < 0.12) this.lap++;
+    if (this.speed > 0 && previousProgress > TAU - 0.12 && this.lapProgress < 0.12) this.lap++;
     this.lastProgress = this.lapProgress;
 
     for (const opponent of this.opponents) {
       opponent.progress += (opponent.speed / 3.6 / 29) * dt;
       const t = Math.PI / 2 + opponent.progress;
-      opponent.mesh.position.set(RX * Math.cos(t), 0.65, RZ * Math.sin(t));
+      const nxRaw = Math.cos(t) / RX;
+      const nzRaw = Math.sin(t) / RZ;
+      const nLength = Math.hypot(nxRaw, nzRaw);
+      const nx = nxRaw / nLength;
+      const nz = nzRaw / nLength;
+      opponent.mesh.position.set(
+        RX * Math.cos(t) + nx * opponent.lane,
+        0.65,
+        RZ * Math.sin(t) + nz * opponent.lane
+      );
       const dx = -RX * Math.sin(t);
       const dz = RZ * Math.cos(t);
       opponent.mesh.rotation.y = Math.atan2(dx, dz);
@@ -203,7 +230,8 @@ export class RacingScene {
         speed: Math.abs(this.speed),
         gear: Math.max(1, Math.min(6, Math.floor(Math.max(0, this.speed) / 38) + 1)),
         rpm: 900 + Math.abs(this.speed) % 38 * 165 + (accel ? 900 : 0),
-        elapsed: this.elapsed, lap: this.lap, position, offTrack: this.offTrack
+        elapsed: this.elapsed, lap: this.lap, position, offTrack: this.offTrack,
+        driftAngle: Math.round(Math.atan2(this.lateralVelocity, Math.max(3, Math.abs(this.speed) / 3.6)) * 180 / Math.PI)
       });
     }
   }
@@ -328,18 +356,25 @@ export class RacingScene {
 
   private makeOpponents() {
     const configs = [
-      { progress: -0.75, speed: 116, color: new Color3(0.04, 0.3, 0.92) },
-      { progress: -1.65, speed: 126, color: new Color3(0.92, 0.52, 0.035) },
-      { progress: -2.55, speed: 108, color: new Color3(0.12, 0.75, 0.42) }
+      { progress: 0.24, speed: 116, lane: -2.8, color: new Color3(0.04, 0.3, 0.92) },
+      { progress: 0.53, speed: 126, lane: 0, color: new Color3(0.92, 0.52, 0.035) },
+      { progress: 0.84, speed: 108, lane: 2.8, color: new Color3(0.12, 0.75, 0.42) }
     ];
     this.opponents = configs.map((config, i) => {
       const mesh = this.makeCar("opponent-" + (i + 1), config.color, false);
       const t = Math.PI / 2 + config.progress;
-      mesh.position.set(RX * Math.cos(t), 0.65, RZ * Math.sin(t));
+      const nxRaw = Math.cos(t) / RX;
+      const nzRaw = Math.sin(t) / RZ;
+      const nLength = Math.hypot(nxRaw, nzRaw);
+      mesh.position.set(
+        RX * Math.cos(t) + nxRaw / nLength * config.lane,
+        0.65,
+        RZ * Math.sin(t) + nzRaw / nLength * config.lane
+      );
       mesh.rotation.y = Math.atan2(-RX * Math.sin(t), RZ * Math.cos(t));
       // The helper only registers player wheels; gather the opponent's four wheels by name.
       const wheels = this.scene.meshes.filter(m => m.name === "opponent-" + (i + 1) + "-wheel") as Mesh[];
-      return { mesh, progress: config.progress, speed: config.speed, wheels };
+      return { mesh, progress: config.progress, speed: config.speed, lane: config.lane, wheels };
     });
   }
 
