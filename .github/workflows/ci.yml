@@ -22,5 +22,7 @@ jobs:
           node-version-file: .nvmrc
       - name: Install dependencies without audit prompts
         run: npm install --no-audit --no-fund
+      - name: Test racing logic
+        run: npm test
       - name: Typecheck and production build
         run: npm run build
