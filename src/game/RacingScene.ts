@@ -7,7 +7,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { applyGrassDrag, crossedStartFinish, driftAngleDegrees, positiveAngle, TAU } from "./raceMath";
+import { applyGrassDrag, countdownNumber, crossedStartFinish, driftAngleDegrees, getRacePhase, positiveAngle, TAU, updateBestLap, type RacePhase } from "./raceMath";
 
 export type QualityMode = "auto" | "low" | "medium" | "high";
 export interface Telemetry {
@@ -19,6 +19,11 @@ export interface Telemetry {
   position: number;
   offTrack: boolean;
   driftAngle: number;
+  lapTime: number;
+  lastLapTime: number;
+  bestLapTime: number;
+  countdown: number;
+  racePhase: RacePhase;
 }
 type Control = "left" | "right" | "accelerate" | "brake" | "handbrake";
 type Opponent = { mesh: Mesh; progress: number; startProgress: number; speed: number; lane: number; wheels: Mesh[] };
@@ -45,6 +50,13 @@ export class RacingScene {
   private lateralVelocity = 0;
   private heading = -Math.PI / 2;
   private elapsed = 0;
+  private lapTime = 0;
+  private lastLapTime = 0;
+  private bestLapTime = 0;
+  private countdownRemaining = 3.0;
+  private raceStarted = false;
+  private goFlashRemaining = 0;
+  private hudAccumulator = 0;
   private lap = 1;
   private lapProgress = 0;
   private offTrack = false;
@@ -53,7 +65,6 @@ export class RacingScene {
   private lowSamples = 0;
   private autoScale = window.matchMedia("(max-width: 700px)").matches ? 0.7 : 0.88;
   private disposed = false;
-  private lastHud = 0;
   private collisionCooldown = 0;
   private down = (e: KeyboardEvent) => {
     const k = e.key.toLowerCase();
@@ -100,7 +111,11 @@ export class RacingScene {
     this.engine.runRenderLoop(() => {
       if (this.disposed) return;
       const dt = Math.min(this.engine.getDeltaTime() / 1000, 0.04);
-      if (!document.hidden) this.update(dt);
+      if (document.hidden) {
+        this.monitor();
+        return;
+      }
+      this.update(dt);
       this.scene.render();
       this.monitor();
     });
@@ -130,7 +145,13 @@ export class RacingScene {
     this.lateralVelocity = 0;
     this.heading = -Math.PI / 2;
     this.elapsed = 0;
-    this.lastHud = 0;
+    this.lapTime = 0;
+    this.lastLapTime = 0;
+    this.bestLapTime = 0;
+    this.countdownRemaining = 3.0;
+    this.raceStarted = false;
+    this.goFlashRemaining = 0;
+    this.hudAccumulator = 0;
     this.keys.clear();
     this.controls.clear();
     this.lap = 1;
@@ -156,7 +177,7 @@ export class RacingScene {
       );
       opponent.mesh.rotation.y = Math.atan2(-RX * Math.sin(t), RZ * Math.cos(t));
     }
-    this.onTelemetry({ speed: 0, rpm: 900, gear: 1, elapsed: 0, lap: 1, position: 4, offTrack: false, driftAngle: 0 });
+    this.publishTelemetry(false);
   }
 
   private applyQuality() {
@@ -196,7 +217,25 @@ export class RacingScene {
   }
 
   private update(dt: number) {
+    this.hudAccumulator += dt;
+    if (!this.raceStarted) {
+      this.countdownRemaining = Math.max(0, this.countdownRemaining - dt);
+      if (this.countdownRemaining <= 0) {
+        this.raceStarted = true;
+        this.elapsed = 0;
+        this.lapTime = 0;
+        this.goFlashRemaining = 0.7;
+      }
+      if (this.hudAccumulator >= 0.08) {
+        this.hudAccumulator = 0;
+        this.publishTelemetry(false);
+      }
+      return;
+    }
+
+    this.goFlashRemaining = Math.max(0, this.goFlashRemaining - dt);
     this.elapsed += dt;
+    this.lapTime += dt;
     this.collisionCooldown = Math.max(0, this.collisionCooldown - dt);
     const accel = this.keys.has("w") || this.keys.has("arrowup") || this.controls.has("accelerate");
     const brake = this.keys.has("s") || this.keys.has("arrowdown") || this.controls.has("brake");
@@ -247,7 +286,12 @@ export class RacingScene {
     // Complete a lap only when crossing the line in the forward race direction.
     const previousProgress = this.lastProgress;
     this.lapProgress = positiveAngle(trackAngle - Math.PI / 2);
-    if (crossedStartFinish(previousProgress, this.lapProgress, this.speed)) this.lap++;
+    if (crossedStartFinish(previousProgress, this.lapProgress, this.speed)) {
+      this.lastLapTime = this.lapTime;
+      this.bestLapTime = updateBestLap(this.lastLapTime, this.bestLapTime);
+      this.lap++;
+      this.lapTime = 0;
+    }
     this.lastProgress = this.lapProgress;
 
     for (const opponent of this.opponents) {
@@ -284,19 +328,33 @@ export class RacingScene {
     this.camera.beta = 1.08 + Math.min(0.12, Math.abs(this.speed) / 1200);
     this.camera.radius = 12 + Math.min(3, Math.abs(this.speed) / 70);
 
-    if (this.elapsed - this.lastHud > 0.08) {
-      this.lastHud = this.elapsed;
-      const playerProgress = (this.lap - 1) * TAU + this.lapProgress;
-      const position = 1 + this.opponents.filter(o => o.progress > playerProgress).length;
-      this.onTelemetry({
-        speed: Math.abs(this.speed),
-        gear: Math.max(1, Math.min(6, Math.floor(Math.max(0, this.speed) / 38) + 1)),
-        rpm: 900 + Math.abs(this.speed) % 38 * 165 + (accel ? 900 : 0),
-        elapsed: this.elapsed, lap: this.lap, position, offTrack: this.offTrack,
-        driftAngle: driftAngleDegrees(this.lateralVelocity, this.speed)
-      });
+    if (this.hudAccumulator >= 0.08) {
+      this.hudAccumulator = 0;
+      this.publishTelemetry(accel);
     }
   }
+
+  private publishTelemetry(accelerating: boolean) {
+    const playerProgress = (this.lap - 1) * TAU + this.lapProgress;
+    const position = 1 + this.opponents.filter(o => o.progress > playerProgress).length;
+    const racePhase = getRacePhase(this.raceStarted, this.goFlashRemaining);
+    this.onTelemetry({
+      speed: Math.abs(this.speed),
+      gear: Math.max(1, Math.min(6, Math.floor(Math.max(0, this.speed) / 38) + 1)),
+      rpm: 900 + Math.abs(this.speed) % 38 * 165 + (accelerating ? 900 : 0),
+      elapsed: this.elapsed,
+      lap: this.lap,
+      position,
+      offTrack: this.offTrack,
+      driftAngle: driftAngleDegrees(this.lateralVelocity, this.speed),
+      lapTime: this.lapTime,
+      lastLapTime: this.lastLapTime,
+      bestLapTime: this.bestLapTime,
+      countdown: countdownNumber(this.countdownRemaining),
+      racePhase
+    });
+  }
+
   private lastProgress = 0;
 
   private makeCar(name: string, color: Color3, player: boolean): Mesh {
