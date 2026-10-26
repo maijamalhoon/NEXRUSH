@@ -557,19 +557,34 @@ export class RacingScene {
   }
 
   private makeCity() {
-    const styles = [
-      { width: 3.4, depth: 3.8, height: 8, bodyColor: new Color3(0.035, 0.07, 0.12), neonColor: Color3.FromHexString(this.setup.track.primary) },
-      { width: 4.1, depth: 3.4, height: 12, bodyColor: new Color3(0.055, 0.06, 0.12), neonColor: Color3.FromHexString(this.setup.track.secondary) },
+    const isDune = this.setup.track.id === "dune-canyon";
+    const isHarbor = this.setup.track.id === "harbor-run";
+    const primary = Color3.FromHexString(this.setup.track.primary);
+    const secondary = Color3.FromHexString(this.setup.track.secondary);
+    const styles = isDune ? [
+      { width: 7.2, depth: 9.4, height: 17, bodyColor: new Color3(0.27, 0.14, 0.075), neonColor: primary },
+      { width: 10.5, depth: 8.2, height: 12, bodyColor: new Color3(0.35, 0.19, 0.09), neonColor: secondary },
+      { width: 6.4, depth: 12.1, height: 23, bodyColor: new Color3(0.22, 0.13, 0.09), neonColor: new Color3(0.82, 0.36, 0.13) },
+      { width: 8.7, depth: 7.6, height: 15, bodyColor: new Color3(0.39, 0.23, 0.12), neonColor: new Color3(0.94, 0.54, 0.2) }
+    ] : isHarbor ? [
+      { width: 5.6, depth: 8.4, height: 12, bodyColor: new Color3(0.045, 0.13, 0.17), neonColor: primary },
+      { width: 7.8, depth: 5.8, height: 16, bodyColor: new Color3(0.06, 0.11, 0.17), neonColor: secondary },
+      { width: 4.3, depth: 10.8, height: 8, bodyColor: new Color3(0.035, 0.18, 0.2), neonColor: new Color3(0.16, 0.7, 0.72) },
+      { width: 8.2, depth: 5.2, height: 19, bodyColor: new Color3(0.055, 0.09, 0.15), neonColor: new Color3(0.21, 0.52, 0.87) }
+    ] : [
+      { width: 3.4, depth: 3.8, height: 8, bodyColor: new Color3(0.035, 0.07, 0.12), neonColor: primary },
+      { width: 4.1, depth: 3.4, height: 12, bodyColor: new Color3(0.055, 0.06, 0.12), neonColor: secondary },
       { width: 3.2, depth: 4.2, height: 16, bodyColor: new Color3(0.04, 0.075, 0.11), neonColor: new Color3(0.68, 0.035, 0.19) },
       { width: 4.6, depth: 3.8, height: 10, bodyColor: new Color3(0.065, 0.07, 0.1), neonColor: new Color3(0.04, 0.48, 0.38) }
     ];
     const templates: Array<{ body: Mesh; stripe: Mesh } | undefined> = new Array(styles.length);
-    const towerCount = 40;
+    const towerCount = isDune ? 26 : isHarbor ? 34 : 40;
 
     for (let i = 0; i < towerCount; i++) {
       const t = i / towerCount * TAU + 0.035;
-      const x = (this.rx + 20) * Math.cos(t);
-      const z = (this.rz + 18) * Math.sin(t);
+      const point = this.trackPosition(t, this.roadHalfWidth + (isDune ? 14 : isHarbor ? 12 : 20));
+      const x = point.x;
+      const z = point.z;
       const styleIndex = i % styles.length;
       const style = styles[styleIndex];
       let body: Mesh | ReturnType<Mesh["createInstance"]>;
@@ -607,9 +622,9 @@ export class RacingScene {
     }
 
     const cyan = new StandardMaterial("start-gate-cyan", this.scene);
-    cyan.emissiveColor = new Color3(0.02, 0.68, 0.9);
+    cyan.emissiveColor = primary;
     const pink = new StandardMaterial("start-gate-pink", this.scene);
-    pink.emissiveColor = new Color3(0.92, 0.025, 0.19);
+    pink.emissiveColor = secondary;
 
     for (const side of [-1, 1]) {
       const post = MeshBuilder.CreateBox("start-gate-post", { width: 0.42, height: 6.2, depth: 0.42 }, this.scene);
