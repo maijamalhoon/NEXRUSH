@@ -30,6 +30,14 @@ npm run dev
 - [ ] Check a desktop Chromium browser and at least one other browser engine.
 - [ ] Test with hardware acceleration disabled and confirm the WebGL fallback message is readable.
 
+## v0.3 scene and adaptive quality
+
+- [ ] Confirm the start gate, car lamps and neon skyline appear in Balanced/High.
+- [ ] Switch to Performance; optional skyline buildings should hide while the road and HUD remain usable.
+- [ ] Switch Performance → Auto: optional scenery should restore only after quality has recovered, not flicker every few seconds.
+- [ ] Drive a full lap with scenery visible and disabled; check that no skyline objects cross into the road.
+- [ ] Open the deployed build and confirm the page title, live HUD and reset control appear.
+
 ## Reporting results
 
 Record the device/browser, quality setting, approximate FPS, visual glitches and exact steps that reproduce an issue. Do not mark a browser or device as supported until it has actually been tested.
