@@ -15,7 +15,8 @@ npm run dev
 - [ ] Confirm session and lap timers begin after GO, not while the engine is loading or during countdown.
 - [ ] Complete a full lap; lap increments once and last-lap/best-lap values are recorded.
 - [ ] Complete a slower lap; best lap remains unchanged. Complete a faster lap; best lap updates.
-- [ ] Press R during a lap; timers/records reset and a new countdown starts.
+- [ ] Finish the third lap; the final-position overlay appears and the race timer stops.
+- [ ] Check final position against the completed three-lap distance, then press R to start a fresh countdown.
 
 ## Driving loop
 
