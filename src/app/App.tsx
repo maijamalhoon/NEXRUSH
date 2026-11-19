@@ -190,7 +190,9 @@ export default function App() {
   useEffect(() => {
     let lastTime = performance.now();
     let accumulator = 0;
+    let hudElapsed = 0;
     const fixedDt = 1 / 60;
+    const maxStepsPerFrame = 4;
 
     const loop = (time: number) => {
       // FPS measurement
@@ -203,7 +205,7 @@ export default function App() {
         fpsCountRef.current.lastTime = time;
       }
 
-      const delta = Math.min(0.1, (time - lastTime) / 1000);
+      const delta = Math.min(0.1, Math.max(0, (time - lastTime) / 1000));
       lastTime = time;
 
       const session = sessionRef.current;
@@ -215,7 +217,9 @@ export default function App() {
 
       if (screen === "race" && session && inputManager && !isPaused) {
         accumulator += delta;
-        while (accumulator >= fixedDt) {
+        let steps = 0;
+        while (accumulator >= fixedDt && steps < maxStepsPerFrame) {
+          steps++;
           const frame = inputManager.getInputFrame(session.sim.state.tick);
           const nextState = session.step(frame);
           accumulator -= fixedDt;
@@ -271,8 +275,14 @@ export default function App() {
           }
         }
 
+        // Never spiral into dozens of simulation steps after a GPU stall.
+        if (steps === maxStepsPerFrame) accumulator = 0;
         const currentState = session.getState();
-        setRaceState({ ...currentState });
+        hudElapsed += delta;
+        if (hudElapsed >= 1 / 20 || currentState.phase === "FINISHED") {
+          setRaceState({ ...currentState });
+          hudElapsed = 0;
+        }
         currentPlayerCar = currentState.cars["player"] ?? null;
 
         // Audio updates
@@ -286,8 +296,9 @@ export default function App() {
         }
       }
 
+      // Avoid burning GPU cycles in background tabs.
       // 3D Babylon render frame
-      if (sceneMgr) {
+      if (sceneMgr && !document.hidden) {
         sceneMgr.renderFrame(session?.getState() ?? null, currentPlayerCar, delta);
       }
 
