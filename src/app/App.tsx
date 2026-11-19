@@ -8,6 +8,9 @@ import type { RaceSimState } from "../game/sim/types";
 import { TRACKS, getTrackById } from "../data/tracks";
 import { CARS } from "../data/cars";
 import { StorageManager } from "../storage/storage";
+import { loadTrialRecord, savePersonalBest } from "../gameplay/timeTrialRecords";
+import type { TrialRecord } from "../gameplay/timeTrialRecords";
+import type { TimeTrialResult } from "../gameplay/timeTrial";
 
 import { SplashScreen } from "../ui/screens/SplashScreen";
 import { MainMenuScreen } from "../ui/screens/MainMenuScreen";
@@ -50,6 +53,7 @@ export default function App() {
   const audioControllerRef = useRef<AudioController>(new AudioController());
   const inputManagerRef = useRef<InputManager | null>(null);
   const [raceState, setRaceState] = useState<RaceSimState | null>(null);
+  const [raceRecord, setRaceRecord] = useState<{ best: TrialRecord | null; newBest: boolean } | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const [fps, setFps] = useState<number>(60);
   const fpsCountRef = useRef({ frames: 0, lastTime: performance.now() });
@@ -152,13 +156,13 @@ export default function App() {
   }, [settings.steeringSensitivity]);
 
   // Start a new race session
-  const startRace = useCallback(async () => {
+  const startRace = useCallback(async (trackId = selectedTrackId) => {
     audioControllerRef.current.unlock();
     audioControllerRef.current.playClick();
 
     const session = new LocalSession({
-      trackId: selectedTrackId,
-      laps: 3,
+      trackId,
+      laps: getTrackById(trackId).defaultLaps,
       difficulty: "normal",
       playerCarId: selectedCarId,
       playerColor: selectedColor,
@@ -168,6 +172,7 @@ export default function App() {
     await session.init();
     sessionRef.current = session;
     setRaceState(session.getState());
+    setRaceRecord(null);
     prevCountdownRef.current = 4;
 
     // Update 3D scene track
@@ -185,7 +190,9 @@ export default function App() {
   useEffect(() => {
     let lastTime = performance.now();
     let accumulator = 0;
+    let hudElapsed = 0;
     const fixedDt = 1 / 60;
+    const maxStepsPerFrame = 4;
 
     const loop = (time: number) => {
       // FPS measurement
@@ -198,7 +205,7 @@ export default function App() {
         fpsCountRef.current.lastTime = time;
       }
 
-      const delta = Math.min(0.1, (time - lastTime) / 1000);
+      const delta = Math.min(0.1, Math.max(0, (time - lastTime) / 1000));
       lastTime = time;
 
       const session = sessionRef.current;
@@ -210,7 +217,9 @@ export default function App() {
 
       if (screen === "race" && session && inputManager && !isPaused) {
         accumulator += delta;
-        while (accumulator >= fixedDt) {
+        let steps = 0;
+        while (accumulator >= fixedDt && steps < maxStepsPerFrame) {
+          steps++;
           const frame = inputManager.getInputFrame(session.sim.state.tick);
           const nextState = session.step(frame);
           accumulator -= fixedDt;
@@ -234,18 +243,46 @@ export default function App() {
             const pCar = nextState.cars["player"];
             const isWinner = nextState.standings[0] === "player";
             StorageManager.recordRace(
-              selectedTrackId,
-              selectedCarId,
+              session.config.trackId,
+              session.config.playerCarId,
               pCar?.bestLapTime ?? 0,
               isWinner
             );
+            const identity = {
+              trackId: session.config.trackId,
+              carId: session.config.playerCarId,
+              physicsVersion: "1",
+              ruleset: `race-${session.config.laps}-laps-${session.config.difficulty}-${session.config.opponentsCount}-bots`,
+            };
+            if (pCar && pCar.finishTime > 0) {
+              const elapsedMs = Math.round(pCar.finishTime * 1000);
+              const penaltyMs = Math.max(0, Math.round(pCar.penaltyTime * 1000));
+              const result: TimeTrialResult = {
+                elapsedMs, penaltyMs, finalMs: elapsedMs + penaltyMs,
+                medal: "none", clean: penaltyMs === 0,
+              };
+              try {
+                const store = window.localStorage;
+                const newBest = savePersonalBest(store, identity, result);
+                setRaceRecord({ best: loadTrialRecord(store, identity), newBest });
+              } catch {
+                // Privacy mode or blocked storage must never interrupt race results.
+                setRaceRecord(null);
+              }
+            }
             setScreen("results");
             break;
           }
         }
 
+        // Never spiral into dozens of simulation steps after a GPU stall.
+        if (steps === maxStepsPerFrame) accumulator = 0;
         const currentState = session.getState();
-        setRaceState({ ...currentState });
+        hudElapsed += delta;
+        if (hudElapsed >= 1 / 20 || currentState.phase === "FINISHED") {
+          setRaceState({ ...currentState });
+          hudElapsed = 0;
+        }
         currentPlayerCar = currentState.cars["player"] ?? null;
 
         // Audio updates
@@ -259,8 +296,9 @@ export default function App() {
         }
       }
 
+      // Avoid burning GPU cycles in background tabs.
       // 3D Babylon render frame
-      if (sceneMgr) {
+      if (sceneMgr && !document.hidden) {
         sceneMgr.renderFrame(session?.getState() ?? null, currentPlayerCar, delta);
       }
 
@@ -278,7 +316,7 @@ export default function App() {
     const currentIdx = TRACKS.findIndex((t) => t.id === selectedTrackId);
     const nextIdx = (currentIdx + 1) % TRACKS.length;
     setSelectedTrackId(TRACKS[nextIdx].id);
-    void startRace();
+    void startRace(TRACKS[nextIdx].id);
   };
 
   return (
@@ -331,7 +369,7 @@ export default function App() {
         <MainMenuScreen
           onRace={() => {
             audioControllerRef.current.playClick();
-            setScreen("track_select");
+            setScreen("car_select");
           }}
           onGarage={() => {
             audioControllerRef.current.playClick();
@@ -361,7 +399,7 @@ export default function App() {
           }}
           onBack={() => {
             audioControllerRef.current.playClick();
-            setScreen("main_menu");
+            setScreen("car_select");
           }}
         />
       )}
@@ -381,8 +419,9 @@ export default function App() {
           onConfirm={() => void startRace()}
           onBack={() => {
             audioControllerRef.current.playClick();
-            setScreen("track_select");
+            setScreen("main_menu");
           }}
+          onChooseTrack={() => setScreen("track_select")}
         />
       )}
 
@@ -411,6 +450,7 @@ export default function App() {
       {screen === "results" && raceState && (
         <ResultsScreen
           raceState={raceState}
+          raceRecord={raceRecord}
           onAgain={() => void startRace()}
           onMenu={() => {
             audioControllerRef.current.playClick();

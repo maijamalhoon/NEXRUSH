@@ -24,6 +24,11 @@ export class SceneManager {
   private cameraMode: CameraMode = "ORBIT";
   private isFirstChaseFrame = true;
   private baseFov = 0.82; // radians (~47 deg)
+  private quality: "auto" | "low" | "medium" | "high" = "auto";
+  private frameSamples = 0;
+  private slowFrames = 0;
+  private fastFrames = 0;
+  private adaptiveScale = 1;
 
   constructor(canvas: HTMLCanvasElement) {
     this.engine = new Engine(
@@ -84,6 +89,11 @@ export class SceneManager {
   };
 
   public setQuality(quality: "auto" | "low" | "medium" | "high"): void {
+    this.quality = quality;
+    this.frameSamples = 0;
+    this.slowFrames = 0;
+    this.fastFrames = 0;
+    this.adaptiveScale = 1;
     switch (quality) {
       case "low":
         this.engine.setHardwareScalingLevel(1.5);
@@ -96,7 +106,7 @@ export class SceneManager {
         break;
       case "auto":
       default:
-        this.engine.setHardwareScalingLevel(window.devicePixelRatio > 1.5 ? 1.25 : 1.0);
+        this.engine.setHardwareScalingLevel(Math.max(1, Math.min(2, window.devicePixelRatio || 1)));
         break;
     }
   }
@@ -207,16 +217,23 @@ export class SceneManager {
         let alphaDiff = desiredAlpha - this.camera.alpha;
         while (alphaDiff > Math.PI) alphaDiff -= Math.PI * 2;
         while (alphaDiff < -Math.PI) alphaDiff += Math.PI * 2;
-        this.camera.alpha += alphaDiff * Math.min(1.0, 10.0 * dt);
+        // Frame-rate-independent damping keeps camera feel consistent on 30/60/120 Hz.
+        this.camera.alpha += alphaDiff * (1 - Math.exp(-5.5 * dt));
 
         const speedRatio = Math.min(1.0, playerCar.speedKmh / 240);
-        this.camera.radius = 8.8 + speedRatio * 3.2;
-        this.camera.beta = 1.30 - speedRatio * 0.06;
+        const cameraBlend = 1 - Math.exp(-3.5 * dt);
+        const desiredRadius = 8.8 + speedRatio * 3.2;
+        this.camera.radius += (desiredRadius - this.camera.radius) * cameraBlend;
+        const desiredBeta = 1.30 - speedRatio * 0.06;
+        this.camera.beta += (desiredBeta - this.camera.beta) * cameraBlend;
 
         const fovBoost = playerCar.isBoosting ? 0.16 : 0.0;
-        this.camera.fov = this.baseFov + speedRatio * 0.1 + fovBoost;
+        const desiredFov = this.baseFov + speedRatio * 0.1 + fovBoost;
+        this.camera.fov += (desiredFov - this.camera.fov) * cameraBlend;
 
-        this.camera.target.set(targetX, 1.1, targetZ);
+        this.camera.target.x += (targetX - this.camera.target.x) * cameraBlend;
+        this.camera.target.y += (1.1 - this.camera.target.y) * cameraBlend;
+        this.camera.target.z += (targetZ - this.camera.target.z) * cameraBlend;
       }
 
       // Camera impact shake during collisions and takedowns
@@ -240,6 +257,29 @@ export class SceneManager {
     this.trackRenderer.update(dt);
 
     this.scene.render();
+    this.adjustResolution(dt);
+  }
+
+  /** Adjust render resolution, never simulation speed, when the GPU struggles. */
+  private adjustResolution(dt: number): void {
+    if (this.quality !== "auto" || !Number.isFinite(dt) || dt <= 0 || dt > 0.2) return;
+    this.frameSamples++;
+    if (dt > 1 / 42) {
+      this.slowFrames++;
+    } else if (dt < 1 / 57) {
+      this.fastFrames++;
+    }
+    if (this.frameSamples < 120) return;
+    const base = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    if (this.slowFrames > 65) {
+      this.adaptiveScale = Math.min(2.25, this.adaptiveScale + 0.25);
+    } else if (this.fastFrames > 105) {
+      this.adaptiveScale = Math.max(1, this.adaptiveScale - 0.125);
+    }
+    this.engine.setHardwareScalingLevel(base * this.adaptiveScale);
+    this.frameSamples = 0;
+    this.slowFrames = 0;
+    this.fastFrames = 0;
   }
 
   public dispose(): void {

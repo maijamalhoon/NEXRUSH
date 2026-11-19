@@ -125,6 +125,10 @@ export class LocalSession implements RaceSession {
   }
 
   public reset(): void {
+    // Recreate the simulation and seeded bot drivers rather than reusing
+    // previous race state, lap counters, or advanced random generators.
+    this.sim = new RaceSimulation(this.track, this.config);
+    this.rng = new SeededRng(this.config.seed ?? 42);
     void this.init();
   }
 
