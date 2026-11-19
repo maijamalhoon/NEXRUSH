@@ -156,7 +156,8 @@ export function stepVehiclePhysics(
 
   // Steering & Yaw Rate
   const speedRatio = Math.min(1.0, Math.abs(vf) / 45);
-  const maxSteerAngle = (0.75 - speedRatio * 0.45) * (spec.handling / 80);
+  // Progressive steering: precise at highway speed, responsive when parking.
+  const maxSteerAngle = (0.58 - speedRatio * 0.36) * (spec.handling / 80);
   let steerInput = input.steer;
 
   if (
@@ -177,7 +178,8 @@ export function stepVehiclePhysics(
     targetYawRate += Math.sign(steerAngle || 1) * 2.2 * (spec.driftFactor || 1.0);
   }
 
-  next.angularVelocity += (targetYawRate - next.angularVelocity) * Math.min(1.0, 16 * dt);
+  // Avoid abrupt direction snaps when the driver changes steering input.
+  next.angularVelocity += (targetYawRate - next.angularVelocity) * Math.min(1.0, (input.handbrake ? 12 : 8) * dt);
   next.heading += next.angularVelocity * dt;
 
   // Wrap heading to [-PI, PI]
@@ -191,8 +193,8 @@ export function stepVehiclePhysics(
 
   // Update world velocity using body-frame forces
   // World acceleration: F_long * forward + F_lat * right
-  const ax = totalLongitudinalAcc * forwardX + lateralAcc * rightX;
-  const az = totalLongitudinalAcc * forwardZ + lateralAcc * rightZ;
+  const ax = totalLongitudinalAcc * Math.sin(next.heading) + lateralAcc * Math.cos(next.heading);
+  const az = totalLongitudinalAcc * Math.cos(next.heading) + lateralAcc * -Math.sin(next.heading);
 
   next.velocity.x += ax * dt;
   next.velocity.z += az * dt;
