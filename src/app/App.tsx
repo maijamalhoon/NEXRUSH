@@ -162,7 +162,7 @@ export default function App() {
 
     const session = new LocalSession({
       trackId,
-      laps: 3,
+      laps: getTrackById(trackId).defaultLaps,
       difficulty: "normal",
       playerCarId: selectedCarId,
       playerColor: selectedColor,
@@ -358,7 +358,7 @@ export default function App() {
         <MainMenuScreen
           onRace={() => {
             audioControllerRef.current.playClick();
-            setScreen("track_select");
+            setScreen("car_select");
           }}
           onGarage={() => {
             audioControllerRef.current.playClick();
@@ -388,7 +388,7 @@ export default function App() {
           }}
           onBack={() => {
             audioControllerRef.current.playClick();
-            setScreen("main_menu");
+            setScreen("car_select");
           }}
         />
       )}
@@ -408,8 +408,9 @@ export default function App() {
           onConfirm={() => void startRace()}
           onBack={() => {
             audioControllerRef.current.playClick();
-            setScreen("track_select");
+            setScreen("main_menu");
           }}
+          onChooseTrack={() => setScreen("track_select")}
         />
       )}
 
