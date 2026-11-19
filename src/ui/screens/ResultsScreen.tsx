@@ -1,11 +1,13 @@
 import React from "react";
 import type { RaceSimState } from "../../game/sim/types";
+import type { TrialRecord } from "../../gameplay/timeTrialRecords";
 import { Button } from "../components/Button";
 import { Badge } from "../components/Badge";
 import { RotateCcw, Home, FastForward, Trophy } from "lucide-react";
 
 interface ResultsScreenProps {
   raceState: RaceSimState;
+  raceRecord?: { best: TrialRecord | null; newBest: boolean } | null;
   onAgain: () => void;
   onMenu: () => void;
   onNextTrack: () => void;
@@ -13,6 +15,7 @@ interface ResultsScreenProps {
 
 export const ResultsScreen: React.FC<ResultsScreenProps> = ({
   raceState,
+  raceRecord,
   onAgain,
   onMenu,
   onNextTrack,
@@ -70,6 +73,18 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
           Race Results
         </h1>
       </header>
+
+      {raceRecord?.best && (
+        <div role="status" aria-live="polite" style={{
+          margin: "0 auto", textAlign: "center", color: "var(--accent-primary)",
+          fontFamily: "var(--font-display)", fontWeight: 800,
+        }}>
+          {raceRecord.newBest ? "NEW PERSONAL BEST" : "PERSONAL BEST"}
+          <div style={{ fontSize: "clamp(20px, 4vw, 30px)", fontVariantNumeric: "tabular-nums" }}>
+            {formatTime(raceRecord.best.finalMs / 1000)}
+          </div>
+        </div>
+      )}
 
       {/* Standings Table */}
       <main
