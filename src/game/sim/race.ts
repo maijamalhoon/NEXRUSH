@@ -9,6 +9,7 @@ export class RaceSimulation {
   public readonly track: TrackSpline;
   public readonly carSpecs: Map<string, CarSpec> = new Map();
   private prevLapProgress: Map<string, number> = new Map();
+  private nextCheckpoint: Map<string, number> = new Map();
 
   constructor(track: TrackSpline, config: RaceConfig) {
     this.track = track;
@@ -27,6 +28,9 @@ export class RaceSimulation {
     this.state.cars[carState.id] = carState;
     this.carSpecs.set(carState.id, spec);
     this.prevLapProgress.set(carState.id, carState.lapProgress);
+    // Grid slots start just before the line; do not count that crossing as a lap.
+    this.nextCheckpoint.set(carState.id, 1);
+    carState.checkpointIndex = 0;
     if (!this.state.standings.includes(carState.id)) {
       this.state.standings.push(carState.id);
     }
@@ -91,9 +95,22 @@ export class RaceSimulation {
         updated.lapTime += dt;
       }
 
-      // Checkpoint and lap completion logic
-      // Completed a lap if crossed from >0.85 to <0.15 forward
-      if (prevProgress > 0.85 && updated.lapProgress < 0.15 && updated.speedKmh > 0) {
+      // Checkpoints must be visited in order before a lap can count.
+      // This prevents start-grid crossings and finish-line shortcuts.
+      const count = this.track.checkpointCount;
+      const checkpoint = Math.min(count - 1, Math.floor(updated.lapProgress * count));
+      let expected = this.nextCheckpoint.get(car.id) ?? 1;
+      const forwardDelta = (updated.lapProgress - prevProgress + 1) % 1;
+      const forwardMovement = forwardDelta > 0 && forwardDelta < 0.1;
+      if (canDrive && forwardMovement && checkpoint === expected) {
+        updated.checkpointIndex = checkpoint;
+        expected++;
+        this.nextCheckpoint.set(car.id, expected);
+      }
+      const crossedLine = prevProgress > 0.85 && updated.lapProgress < 0.15;
+      if (canDrive && crossedLine && forwardMovement && expected === count && updated.speedKmh > 0) {
+        this.nextCheckpoint.set(car.id, 1);
+        updated.checkpointIndex = 0;
         // Valid lap completed!
         updated.lastLapTime = updated.lapTime;
         if (updated.bestLapTime <= 0 || updated.lapTime < updated.bestLapTime) {
