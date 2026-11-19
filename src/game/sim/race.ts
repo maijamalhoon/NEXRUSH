@@ -27,7 +27,10 @@ export class RaceSimulation {
   public addCar(carState: CarSimState, spec: CarSpec): void {
     this.state.cars[carState.id] = carState;
     this.carSpecs.set(carState.id, spec);
-    this.prevLapProgress.set(carState.id, carState.lapProgress);
+    const startingProgress = this.track.findNearest(carState.position.x, carState.position.z).progress;
+    carState.lapProgress = startingProgress;
+    carState.totalProgress = startingProgress;
+    this.prevLapProgress.set(carState.id, startingProgress);
     // Grid slots start just before the line; do not count that crossing as a lap.
     this.nextCheckpoint.set(carState.id, 1);
     carState.checkpointIndex = 0;
@@ -101,7 +104,8 @@ export class RaceSimulation {
       const checkpoint = Math.min(count - 1, Math.floor(updated.lapProgress * count));
       let expected = this.nextCheckpoint.get(car.id) ?? 1;
       const forwardDelta = (updated.lapProgress - prevProgress + 1) % 1;
-      const forwardMovement = forwardDelta > 0 && forwardDelta < 0.1;
+      const forwardMovement = forwardDelta > 0 && forwardDelta < 0.1 &&
+        updated.velocity.x * trackInfo.tangent.x + updated.velocity.z * trackInfo.tangent.z > 0;
       if (canDrive && forwardMovement && checkpoint === expected) {
         updated.checkpointIndex = checkpoint;
         expected++;
@@ -195,6 +199,17 @@ export class RaceSimulation {
    * Deserializes and restores state from JSON.
    */
   public deserialize(json: string): void {
-    this.state = JSON.parse(json);
+    const restored = JSON.parse(json) as RaceSimState;
+    if (!restored || !restored.cars || !Number.isFinite(restored.tick)) {
+      throw new Error("Invalid race snapshot");
+    }
+    this.state = restored;
+    this.prevLapProgress.clear();
+    this.nextCheckpoint.clear();
+    for (const car of Object.values(restored.cars)) {
+      this.prevLapProgress.set(car.id, car.lapProgress);
+      const index = Number.isInteger(car.checkpointIndex) ? car.checkpointIndex : 0;
+      this.nextCheckpoint.set(car.id, Math.max(1, Math.min(this.track.checkpointCount, index + 1)));
+    }
   }
 }
