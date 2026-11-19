@@ -257,8 +257,14 @@ export default function App() {
                 elapsedMs, penaltyMs, finalMs: elapsedMs + penaltyMs,
                 medal: "none", clean: penaltyMs === 0,
               };
-              const newBest = savePersonalBest(window.localStorage, identity, result);
-              setRaceRecord({ best: loadTrialRecord(window.localStorage, identity), newBest });
+              try {
+                const store = window.localStorage;
+                const newBest = savePersonalBest(store, identity, result);
+                setRaceRecord({ best: loadTrialRecord(store, identity), newBest });
+              } catch {
+                // Privacy mode or blocked storage must never interrupt race results.
+                setRaceRecord(null);
+              }
             }
             setScreen("results");
             break;
