@@ -24,6 +24,11 @@ export class SceneManager {
   private cameraMode: CameraMode = "ORBIT";
   private isFirstChaseFrame = true;
   private baseFov = 0.82; // radians (~47 deg)
+  private quality: "auto" | "low" | "medium" | "high" = "auto";
+  private frameSamples = 0;
+  private slowFrames = 0;
+  private fastFrames = 0;
+  private adaptiveScale = 1;
 
   constructor(canvas: HTMLCanvasElement) {
     this.engine = new Engine(
@@ -84,6 +89,11 @@ export class SceneManager {
   };
 
   public setQuality(quality: "auto" | "low" | "medium" | "high"): void {
+    this.quality = quality;
+    this.frameSamples = 0;
+    this.slowFrames = 0;
+    this.fastFrames = 0;
+    this.adaptiveScale = 1;
     switch (quality) {
       case "low":
         this.engine.setHardwareScalingLevel(1.5);
@@ -96,7 +106,7 @@ export class SceneManager {
         break;
       case "auto":
       default:
-        this.engine.setHardwareScalingLevel(window.devicePixelRatio > 1.5 ? 1.25 : 1.0);
+        this.engine.setHardwareScalingLevel(Math.max(1, Math.min(2, window.devicePixelRatio || 1)));
         break;
     }
   }
@@ -240,6 +250,29 @@ export class SceneManager {
     this.trackRenderer.update(dt);
 
     this.scene.render();
+    this.adjustResolution(dt);
+  }
+
+  /** Adjust render resolution, never simulation speed, when the GPU struggles. */
+  private adjustResolution(dt: number): void {
+    if (this.quality !== "auto" || !Number.isFinite(dt) || dt <= 0 || dt > 0.2) return;
+    this.frameSamples++;
+    if (dt > 1 / 42) {
+      this.slowFrames++;
+    } else if (dt < 1 / 57) {
+      this.fastFrames++;
+    }
+    if (this.frameSamples < 120) return;
+    const base = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    if (this.slowFrames > 65) {
+      this.adaptiveScale = Math.min(2.25, this.adaptiveScale + 0.25);
+    } else if (this.fastFrames > 105) {
+      this.adaptiveScale = Math.max(1, this.adaptiveScale - 0.125);
+    }
+    this.engine.setHardwareScalingLevel(base * this.adaptiveScale);
+    this.frameSamples = 0;
+    this.slowFrames = 0;
+    this.fastFrames = 0;
   }
 
   public dispose(): void {
